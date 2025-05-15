@@ -1,0 +1,11 @@
+{
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "laravel-pint",
+    "[php]": {
+        "editor.defaultFormatter": "laravel-pint",
+        "editor.formatOnSave": true
+    },
+    "php.validate.enable": true,
+    "php.suggest.basic": true,
+    "php.format.enable": true
+} 

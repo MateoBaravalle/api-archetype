@@ -1,0 +1,373 @@
+---
+description: Reglas para la creación y modificación de API Resources
+globs:
+    - "app/Http/Resources/**/*.php"
+---
+
+# API Resources (Transformadores)
+
+## Tipos de Resources
+
+### 1. Resources Estándar (extienden `ApiResource`)
+
+Para transformación de modelos de dominio.
+
+```php
+class TaskResource extends ApiResource { }
+class ProductResource extends ApiResource { }
+```
+
+### 2. Resources Especiales (extienden `ApiResource`)
+
+Para respuestas específicas que NO corresponden a un modelo CRUD.
+
+```php
+class AuthResource extends ApiResource { }      // Usuario + token
+class DashboardResource extends ApiResource { } // Métricas agregadas
+```
+
+### 3. Collections (extienden `ApiCollection`)
+
+Para listas paginadas de recursos.
+
+```php
+class TaskCollection extends ApiCollection { }
+```
+
+### 4. Resources Sin Clase Base (casos simples)
+
+Para respuestas muy simples, se puede retornar arrays directamente:
+
+```php
+// En el controlador
+return $this->successResponse([
+    'status' => 'ok',
+    'version' => '1.0.0',
+]);
+```
+
+## Cuándo Usar Cada Tipo
+
+| Tipo | Usar cuando |
+|------|-------------|
+| `extends ApiResource` | Transformar modelos individuales |
+| `extends ApiCollection` | Listas paginadas con metadatos |
+| Array directo | Respuestas simples sin modelo |
+| `JsonResource` estándar | Si no necesitas funcionalidad base |
+
+---
+
+## Resources Estándar
+
+### Estructura
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Resources;
+
+class ProductResource extends ApiResource
+{
+    public function toArray($request): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'description' => $this->description,
+            'price' => $this->price,
+            'created_at' => $this->created_at?->toIso8601String(),
+            'updated_at' => $this->updated_at?->toIso8601String(),
+        ];
+    }
+}
+```
+
+### Formateo de Fechas
+
+SIEMPRE usar formato ISO 8601:
+
+```php
+'created_at' => $this->created_at?->toIso8601String(),
+'updated_at' => $this->updated_at?->toIso8601String(),
+'due_date' => $this->due_date?->format('Y-m-d'),
+```
+
+### Campos Condicionales
+
+```php
+public function toArray($request): array
+{
+    return [
+        'id' => $this->id,
+        'name' => $this->name,
+        
+        // Solo si la relación está cargada
+        'category' => new CategoryResource($this->whenLoaded('category')),
+        
+        // Solo si el usuario es admin
+        'internal_notes' => $this->when($request->user()?->isAdmin(), $this->internal_notes),
+        
+        // Conteo condicional
+        'comments_count' => $this->whenCounted('comments'),
+    ];
+}
+```
+
+### Relaciones
+
+```php
+'user' => new UserResource($this->whenLoaded('user')),
+'items' => ItemResource::collection($this->whenLoaded('items')),
+```
+
+---
+
+## Resources Especiales
+
+### AuthResource (Usuario + Token)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Resources;
+
+class AuthResource extends ApiResource
+{
+    public function toArray($request): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'token' => $this->token ?? null,  // Token agregado dinámicamente
+        ];
+    }
+}
+```
+
+### DashboardResource (Datos Agregados)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Resources;
+
+class DashboardResource extends ApiResource
+{
+    public function toArray($request): array
+    {
+        // $this->resource es un array, no un modelo
+        return [
+            'total_users' => $this->resource['total_users'],
+            'total_orders' => $this->resource['total_orders'],
+            'revenue_today' => number_format($this->resource['revenue_today'], 2),
+            'generated_at' => now()->toIso8601String(),
+        ];
+    }
+}
+```
+
+Uso en controlador:
+
+```php
+$metrics = $this->dashboardService->getMetrics();
+return $this->successResponse(new DashboardResource($metrics));
+```
+
+---
+
+## Collections
+
+### Estructura Base
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Resources;
+
+class ProductCollection extends ApiCollection
+{
+    // Hereda paginación automática de ApiCollection
+}
+```
+
+### Formato de Respuesta Automático
+
+`ApiCollection` genera:
+
+```json
+{
+  "data": [...],
+  "meta": {
+    "pagination": {
+      "total": 100,
+      "count": 10,
+      "per_page": 10,
+      "current_page": 1,
+      "total_pages": 10,
+      "has_more_pages": true
+    }
+  }
+}
+```
+
+### Collection Personalizada
+
+Para agregar metadatos adicionales:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Resources;
+
+class ProductCollection extends ApiCollection
+{
+    public function toArray($request): array
+    {
+        $result = parent::toArray($request);
+        
+        $result['meta']['filters'] = [
+            'available_statuses' => ['active', 'inactive'],
+            'price_range' => [
+                'min' => $this->collection->min('price'),
+                'max' => $this->collection->max('price'),
+            ],
+        ];
+        
+        return $result;
+    }
+}
+```
+
+---
+
+## Cuándo NO Crear Resource/Collection
+
+### Recursos sin transformación especial
+
+Si el modelo ya tiene los campos correctos y no necesitas transformación:
+
+```php
+// Opción 1: Usar Resource genérico
+return $this->successResponse(new JsonResource($model));
+
+// Opción 2: Array directo para respuestas simples
+return $this->successResponse(['id' => $model->id, 'name' => $model->name]);
+```
+
+### Respuestas de acción (sin datos)
+
+```php
+// Logout, delete, etc.
+return $this->successResponse(null, 'Operación completada');
+```
+
+---
+
+## Resolución Automática
+
+El trait `ApiResponseFormatter` resuelve automáticamente:
+
+```php
+// El controlador llama:
+return $this->transformResource($task);     // Busca TaskResource
+return $this->transformCollection($tasks);  // Busca TaskCollection
+
+// Si no existe la clase específica, usa genéricos
+```
+
+Convención de nombres:
+- Modelo `Task` → `TaskResource`, `TaskCollection`
+- Modelo `Product` → `ProductResource`, `ProductCollection`
+
+---
+
+## ✅ Ejemplos
+
+### Resource Completo
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Resources;
+
+class TaskResource extends ApiResource
+{
+    public function toArray($request): array
+    {
+        return [
+            'id' => $this->id,
+            'title' => $this->title,
+            'description' => $this->description,
+            'status' => $this->status,
+            'priority' => $this->priority,
+            'due_date' => $this->due_date?->format('Y-m-d'),
+            'user' => new UserResource($this->whenLoaded('user')),
+            'tags' => TagResource::collection($this->whenLoaded('tags')),
+            'comments_count' => $this->whenCounted('comments'),
+            'created_at' => $this->created_at?->toIso8601String(),
+            'updated_at' => $this->updated_at?->toIso8601String(),
+        ];
+    }
+}
+```
+
+### Collection Simple
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Resources;
+
+class TaskCollection extends ApiCollection
+{
+    // Hereda todo de ApiCollection
+}
+```
+
+---
+
+## Campos que NO Exponer
+
+Nunca incluir en Resources:
+
+- `password`
+- `remember_token`
+- `deleted_at` (interno)
+- Tokens de API
+- Campos internos del sistema
+
+---
+
+## ❌ Errores Comunes
+
+```php
+// ❌ Exponer datos sensibles
+return [
+    'password' => $this->password,
+    'token' => $this->remember_token,
+];
+
+// ❌ Fechas sin formato
+'created_at' => $this->created_at,  // Usar toIso8601String()
+
+// ❌ Relaciones sin whenLoaded (causa N+1)
+'user' => new UserResource($this->user),  // Siempre carga la relación
+
+// ❌ No usar return type
+public function toArray($request)  // Falta: : array
+```

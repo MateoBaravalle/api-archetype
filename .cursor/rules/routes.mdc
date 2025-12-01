@@ -1,0 +1,297 @@
+---
+description: Reglas para la configuración de rutas de la API
+globs:
+    - "routes/api.php"
+    - "routes/*.php"
+---
+
+# Rutas de la API
+
+## Estructura General
+
+Todas las rutas API deben estar bajo el prefijo `/api/v1/`:
+
+```php
+Route::prefix('v1')->group(function () {
+    // Rutas de la API
+});
+```
+
+## Tipos de Rutas
+
+### 1. Rutas CRUD (apiResource)
+
+Para recursos con operaciones estándar completas.
+
+```php
+Route::apiResource('tasks', TaskController::class);
+Route::apiResource('products', ProductController::class);
+```
+
+### 2. Rutas CRUD Parciales
+
+Para recursos que NO necesitan todas las operaciones:
+
+```php
+// Solo lectura
+Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
+
+// Sin eliminación
+Route::apiResource('orders', OrderController::class)->except(['destroy']);
+```
+
+### 3. Rutas de Acción Específica
+
+Para operaciones que NO son CRUD estándar:
+
+```php
+Route::post('/auth', [AuthController::class, 'store']);
+Route::get('/reports/sales', [ReportController::class, 'sales']);
+Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel']);
+```
+
+### 4. Rutas Invocables
+
+Para controladores de una sola acción:
+
+```php
+Route::get('/health', HealthController::class);
+```
+
+## Cuándo Usar Cada Tipo
+
+| Tipo | Usar cuando |
+|------|-------------|
+| `apiResource` | CRUD completo (5 operaciones) |
+| `apiResource()->only()` | CRUD parcial (solo algunas operaciones) |
+| Rutas individuales | Acciones específicas no-CRUD |
+| Ruta invocable | Controlador de una sola acción |
+
+---
+
+## Convenciones de Nomenclatura
+
+| Elemento | Convención | Ejemplo |
+|----------|------------|---------|
+| Recursos | Plural, kebab-case | `/products`, `/order-items` |
+| Parámetros | Singular | `/{id}`, `/{user}` |
+| Acciones custom | Verbo, kebab-case | `/orders/{id}/mark-as-shipped` |
+
+---
+
+## Agrupación por Autenticación
+
+```php
+Route::prefix('v1')->group(function () {
+    // ==========================================
+    // Rutas públicas (sin autenticación)
+    // ==========================================
+    Route::post('/auth', [AuthController::class, 'store'])->name('auth.store');
+    
+    // Recursos públicos (solo lectura)
+    Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
+    
+    // ==========================================
+    // Rutas protegidas (requieren autenticación)
+    // ==========================================
+    Route::middleware('auth:sanctum')->group(function () {
+        // Auth
+        Route::get('/auth', [AuthController::class, 'show'])->name('auth.show');
+        Route::delete('/auth', [AuthController::class, 'destroy'])->name('auth.destroy');
+        
+        // Perfil de usuario
+        Route::get('/users/profile', [UserController::class, 'profile']);
+        Route::put('/users/profile', [UserController::class, 'updateProfile']);
+        Route::put('/users/password', [UserController::class, 'updatePassword']);
+        
+        // CRUD completo
+        Route::apiResource('tasks', TaskController::class);
+        Route::apiResource('products', ProductController::class);
+        
+        // Acciones específicas
+        Route::post('/tasks/{id}/complete', [TaskController::class, 'complete']);
+    });
+});
+```
+
+---
+
+## Rutas de Autenticación
+
+Estructura estándar del arquetipo:
+
+```php
+// Pública - Login/Registro
+Route::post('/auth', [AuthController::class, 'store'])->name('auth.store');
+
+// Protegidas
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/auth', [AuthController::class, 'show'])->name('auth.show');
+    Route::delete('/auth', [AuthController::class, 'destroy'])->name('auth.destroy');
+    
+    Route::get('/users/profile', [UserController::class, 'profile']);
+    Route::put('/users/profile', [UserController::class, 'updateProfile']);
+    Route::put('/users/password', [UserController::class, 'updatePassword']);
+});
+```
+
+---
+
+## Acciones Personalizadas
+
+### Sobre un recurso específico
+
+```php
+Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel']);
+Route::post('/orders/{id}/ship', [OrderController::class, 'ship']);
+Route::post('/tasks/{id}/complete', [TaskController::class, 'complete']);
+```
+
+### Sobre colección
+
+```php
+Route::post('/products/bulk-delete', [ProductController::class, 'bulkDelete']);
+Route::get('/products/export', [ProductController::class, 'export']);
+Route::post('/products/import', [ProductController::class, 'import']);
+```
+
+### Reportes y dashboards
+
+```php
+Route::get('/reports/sales', [ReportController::class, 'sales']);
+Route::get('/reports/inventory', [ReportController::class, 'inventory']);
+Route::get('/dashboard/metrics', [DashboardController::class, 'metrics']);
+```
+
+---
+
+## Rutas Anidadas
+
+Para recursos relacionados:
+
+```php
+// Tareas de un proyecto
+Route::apiResource('projects.tasks', ProjectTaskController::class)->shallow();
+
+// Genera:
+// GET    /projects/{project}/tasks      -> index
+// POST   /projects/{project}/tasks      -> store
+// GET    /tasks/{task}                  -> show (shallow)
+// PUT    /tasks/{task}                  -> update (shallow)
+// DELETE /tasks/{task}                  -> destroy (shallow)
+```
+
+---
+
+## Nombres de Rutas
+
+SIEMPRE asignar nombres descriptivos:
+
+```php
+// Automático con apiResource
+Route::apiResource('products', ProductController::class);
+// Genera: products.index, products.store, products.show, products.update, products.destroy
+
+// Manual para rutas específicas
+Route::get('/reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
+Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+```
+
+---
+
+## Rate Limiting
+
+```php
+// Para autenticación (más restrictivo)
+Route::middleware(['throttle:10,1'])->group(function () {
+    Route::post('/auth', [AuthController::class, 'store']);
+});
+
+// Para API general
+Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
+    Route::apiResource('products', ProductController::class);
+});
+```
+
+---
+
+## ✅ Ejemplo Completo
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExportController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Route;
+
+Route::prefix('v1')->group(function () {
+    // ==========================================
+    // Rutas públicas
+    // ==========================================
+    
+    // Auth
+    Route::post('/auth', [AuthController::class, 'store'])->name('auth.store');
+    
+    // Catálogo público (solo lectura)
+    Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
+    Route::apiResource('products', ProductController::class)->only(['index', 'show']);
+    
+    // ==========================================
+    // Rutas protegidas
+    // ==========================================
+    Route::middleware('auth:sanctum')->group(function () {
+        // Auth
+        Route::get('/auth', [AuthController::class, 'show'])->name('auth.show');
+        Route::delete('/auth', [AuthController::class, 'destroy'])->name('auth.destroy');
+        
+        // Perfil
+        Route::get('/users/profile', [UserController::class, 'profile']);
+        Route::put('/users/profile', [UserController::class, 'updateProfile']);
+        Route::put('/users/password', [UserController::class, 'updatePassword']);
+        
+        // CRUD completo
+        Route::apiResource('tasks', TaskController::class);
+        
+        // CRUD con escritura para productos
+        Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
+        
+        // Acciones específicas
+        Route::post('/tasks/{id}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
+        
+        // Exportaciones
+        Route::get('/export/products', [ExportController::class, 'products'])->name('export.products');
+        
+        // Dashboard
+        Route::get('/dashboard/metrics', [DashboardController::class, 'metrics'])->name('dashboard.metrics');
+    });
+});
+```
+
+---
+
+## ❌ Errores Comunes
+
+```php
+// ❌ Sin prefijo de versión
+Route::get('/products', ...);  // Debería ser /v1/products
+
+// ❌ Verbos en la URL
+Route::get('/getProducts', ...);  // Debería ser GET /products
+Route::post('/createProduct', ...);  // Debería ser POST /products
+
+// ❌ Sin nombre de ruta
+Route::get('/reports/sales', [ReportController::class, 'sales']);
+// Correcto: ->name('reports.sales')
+
+// ❌ Rutas públicas y protegidas mezcladas sin organización
+Route::post('/auth', ...);
+Route::middleware('auth:sanctum')->get('/tasks', ...);
+Route::get('/categories', ...);  // ¿Pública o protegida?
+```

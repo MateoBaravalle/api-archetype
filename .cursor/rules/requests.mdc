@@ -1,0 +1,373 @@
+---
+description: Reglas para la creación y modificación de Form Requests
+globs:
+    - "app/Http/Requests/**/*.php"
+---
+
+# Form Requests (Validación)
+
+## Tipos de Requests
+
+### 1. Requests CRUD (extienden `ApiRequest`)
+
+Para validación de recursos con operaciones estándar.
+
+```php
+class TaskRequest extends ApiRequest { }
+class ProductRequest extends ApiRequest { }
+```
+
+### 2. Requests de Acción Específica (extienden `ApiRequest`)
+
+Para validaciones de operaciones no-CRUD.
+
+```php
+class AuthRequest extends ApiRequest { }
+class PasswordResetRequest extends ApiRequest { }
+class ExportRequest extends ApiRequest { }
+```
+
+### 3. Requests Simples (sin FormRequest)
+
+Para acciones muy simples, se puede validar directamente en el controlador usando `Request`:
+
+```php
+// En el controlador - solo para casos muy simples
+public function search(Request $request): JsonResponse
+{
+    $query = $request->input('q', '');
+    // ...
+}
+```
+
+## Cuándo Usar Cada Tipo
+
+| Tipo                 | Usar cuando                                |
+| -------------------- | ------------------------------------------ |
+| `extends ApiRequest` | Validación compleja con múltiples reglas   |
+| `Request` directo    | Parámetros simples sin validación compleja |
+
+---
+
+## Requests con ApiRequest
+
+### Estructura Base
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests;
+
+class NombreRequest extends ApiRequest
+{
+    public function rules(): array
+    {
+        return [
+            // Reglas de validación
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            // Mensajes personalizados
+        ];
+    }
+}
+```
+
+### Funcionalidades Heredadas
+
+`ApiRequest` proporciona:
+
+-   **Sanitización automática**: trim, htmlspecialchars, normalización de espacios
+-   **Formato de errores JSON**: `{success: false, message, errors}`
+-   **Autorización por defecto**: `authorize()` retorna `true`
+
+---
+
+## Requests CRUD
+
+### Diferenciando Creación vs Actualización
+
+```php
+public function rules(): array
+{
+    $rules = [
+        'name' => 'string|max:255',
+        'description' => 'nullable|string',
+        'price' => 'numeric|min:0',
+        'status' => 'string|in:active,inactive',
+    ];
+
+    // Campos requeridos SOLO en creación (POST)
+    if ($this->isMethod('post')) {
+        $rules['name'] = 'required|string|max:255';
+        $rules['price'] = 'required|numeric|min:0';
+    }
+
+    return $rules;
+}
+```
+
+### Validación con Contexto (ID del recurso)
+
+```php
+public function rules(): array
+{
+    $productId = $this->route('id');  // ID del recurso actual
+
+    return [
+        'sku' => "required|unique:products,sku,{$productId}",
+        'email' => "required|email|unique:users,email,{$productId}",
+    ];
+}
+```
+
+---
+
+## Requests de Acción Específica
+
+### AuthRequest (Login/Registro)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests;
+
+class AuthRequest extends ApiRequest
+{
+    public function rules(): array
+    {
+        return [
+            'name' => 'nullable|string|max:255',
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|min:8',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'email.required' => 'El correo electrónico es obligatorio',
+            'email.email' => 'El correo electrónico debe ser válido',
+            'password.required' => 'La contraseña es obligatoria',
+            'password.min' => 'La contraseña debe tener al menos 8 caracteres',
+        ];
+    }
+}
+```
+
+### UserRequest (Múltiples Acciones)
+
+Un mismo Request puede manejar diferentes acciones usando `routeIs()`:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests;
+
+class UserRequest extends ApiRequest
+{
+    public function rules(): array
+    {
+        // Cambio de contraseña
+        if ($this->routeIs('users.password.update')) {
+            return [
+                'password' => 'required|string|min:8|confirmed',
+            ];
+        }
+
+        // Actualización de perfil
+        $userId = $this->user()?->id;
+        return [
+            'name' => 'string|max:255',
+            'email' => "email|unique:users,email,{$userId}",
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'name.max' => 'El nombre no puede exceder los 255 caracteres',
+            'email.email' => 'El correo electrónico debe ser válido',
+            'email.unique' => 'Este correo electrónico ya está registrado',
+            'password.required' => 'La contraseña es obligatoria',
+            'password.min' => 'La contraseña debe tener al menos 8 caracteres',
+            'password.confirmed' => 'Las contraseñas no coinciden',
+        ];
+    }
+}
+```
+
+### ExportRequest (Parámetros de exportación)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests;
+
+class ExportRequest extends ApiRequest
+{
+    public function rules(): array
+    {
+        return [
+            'format' => 'required|in:csv,xlsx,pdf',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+            'columns' => 'nullable|array',
+            'columns.*' => 'string',
+        ];
+    }
+}
+```
+
+---
+
+## Reglas Comunes
+
+### Strings
+
+```php
+'title' => 'required|string|max:255',
+'description' => 'nullable|string|max:1000',
+'slug' => 'required|string|alpha_dash|unique:products,slug',
+```
+
+### Números
+
+```php
+'price' => 'required|numeric|min:0|max:999999.99',
+'quantity' => 'required|integer|min:1',
+'percentage' => 'required|numeric|between:0,100',
+```
+
+### Fechas
+
+```php
+'start_date' => 'required|date|after:today',
+'end_date' => 'required|date|after:start_date',
+'birth_date' => 'required|date|before:today',
+```
+
+### Enums / Opciones
+
+```php
+'status' => 'required|string|in:pending,active,completed,cancelled',
+'priority' => 'required|integer|in:1,2,3,4,5',
+```
+
+### Relaciones
+
+```php
+'user_id' => 'required|exists:users,id',
+'category_id' => 'nullable|exists:categories,id',
+'tags' => 'nullable|array',
+'tags.*' => 'exists:tags,id',
+```
+
+### Archivos
+
+```php
+'avatar' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+'document' => 'required|file|mimes:pdf,doc,docx|max:10240',
+```
+
+---
+
+## Mensajes Personalizados
+
+Siempre en español y descriptivos:
+
+```php
+public function messages(): array
+{
+    return [
+        'name.required' => 'El nombre es obligatorio',
+        'name.max' => 'El nombre no puede exceder los 255 caracteres',
+        'email.required' => 'El correo electrónico es obligatorio',
+        'email.email' => 'El correo electrónico debe ser válido',
+        'email.unique' => 'Este correo electrónico ya está registrado',
+        'price.required' => 'El precio es obligatorio',
+        'price.numeric' => 'El precio debe ser un número',
+        'price.min' => 'El precio no puede ser negativo',
+        'status.in' => 'El estado debe ser: active o inactive',
+    ];
+}
+```
+
+---
+
+## ✅ Ejemplo Completo
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests;
+
+class TaskRequest extends ApiRequest
+{
+    public function rules(): array
+    {
+        $rules = [
+            'title' => 'string|max:255',
+            'description' => 'nullable|string',
+            'status' => 'string|in:pending,in_progress,completed',
+            'due_date' => 'nullable|date|after:today',
+            'priority' => 'integer|min:1|max:5',
+            'user_id' => 'exists:users,id',
+        ];
+
+        if ($this->isMethod('post')) {
+            $rules['title'] = 'required|string|max:255';
+        }
+
+        return $rules;
+    }
+
+    public function messages(): array
+    {
+        return [
+            'title.required' => 'El título es obligatorio',
+            'title.max' => 'El título no puede exceder los 255 caracteres',
+            'status.in' => 'El estado debe ser: pending, in_progress o completed',
+            'priority.min' => 'La prioridad debe ser al menos 1',
+            'priority.max' => 'La prioridad no puede ser mayor que 5',
+            'due_date.date' => 'La fecha de vencimiento debe ser válida',
+            'due_date.after' => 'La fecha de vencimiento debe ser posterior a hoy',
+        ];
+    }
+}
+```
+
+---
+
+## ❌ Errores Comunes
+
+```php
+// ❌ No extender ApiRequest (pierde sanitización y formato de errores)
+class TaskRequest extends FormRequest { }
+
+// ❌ Sin messages personalizados
+public function rules(): array
+{
+    return ['title' => 'required'];
+    // Los mensajes por defecto están en inglés
+}
+
+// ❌ Reglas incompletas
+'status' => 'required',  // Sin validar valores válidos
+
+// ❌ Sin diferenciar create/update
+'name' => 'required|string',  // Siempre requerido, falla en update parcial
+```

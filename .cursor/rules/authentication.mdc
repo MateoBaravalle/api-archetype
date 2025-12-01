@@ -1,0 +1,435 @@
+---
+description: Reglas para el sistema de autenticación
+globs:
+  - "app/Http/Controllers/AuthController.php"
+  - "app/Http/Controllers/UserController.php"
+  - "app/Services/AuthService.php"
+  - "app/Http/Requests/AuthRequest.php"
+  - "app/Http/Requests/UserRequest.php"
+---
+
+# Sistema de Autenticación
+
+## Arquitectura
+
+El sistema de autenticación usa **Laravel Sanctum** con un flujo unificado de login/registro.
+
+### Componentes
+
+| Componente | Responsabilidad |
+|------------|-----------------|
+| `AuthController` | Login, registro, logout |
+| `UserController` | Gestión de perfil y contraseña |
+| `AuthService` | Lógica de autenticación |
+| `AuthRequest` | Validación de credenciales |
+| `UserRequest` | Validación de perfil |
+
+## Flujo de Autenticación
+
+```
+POST /api/v1/auth
+    │
+    ├── Usuario NO existe → Registrar → Disparar UserRegistered → Retornar token
+    │
+    └── Usuario existe → Validar contraseña → Retornar token
+```
+
+## AuthController
+
+### Estructura Obligatoria
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Events\UserRegistered;
+use App\Http\Requests\AuthRequest;
+use App\Http\Resources\AuthResource;
+use App\Models\User;
+use App\Services\AuthService;
+use Illuminate\Http\Request;
+
+class AuthController extends Controller
+{
+    private AuthService $authService;
+
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
+
+    /**
+     * Login o Registro unificado
+     */
+    public function store(AuthRequest $request)
+    {
+        try {
+            $user = User::where('email', $request->email)->first();
+
+            if (!$user) {
+                // Registro
+                $user = $this->authService->createUser($request->validated());
+                event(new UserRegistered($user));
+                
+                $user->token = $this->authService->createApiToken($user, 'auth-token');
+                return $this->successResponse(new AuthResource($user), 'Usuario registrado exitosamente', 201);
+            }
+
+            // Login
+            if (!$this->authService->validateCredentials($request->email, $request->password)) {
+                return $this->errorResponse(
+                    'Las credenciales proporcionadas son incorrectas.',
+                    422,
+                    ['email' => ['Las credenciales proporcionadas son incorrectas.']]
+                );
+            }
+
+            $user->token = $this->authService->createApiToken($user, 'auth-token');
+            return $this->successResponse(new AuthResource($user), 'Usuario autenticado exitosamente');
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+
+    /**
+     * Obtener usuario autenticado
+     */
+    public function show(Request $request)
+    {
+        try {
+            return $this->successResponse(new AuthResource($request->user()));
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+
+    /**
+     * Logout (revocar tokens)
+     */
+    public function destroy(Request $request)
+    {
+        try {
+            $this->authService->revokeAllTokens($request->user());
+            return $this->successResponse(null, 'Sesión cerrada exitosamente');
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+}
+```
+
+## AuthService
+
+### Métodos Obligatorios
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+
+class AuthService
+{
+    /**
+     * Crear nuevo usuario
+     */
+    public function createUser(array $data): User
+    {
+        return User::create([
+            'name' => $data['name'] ?? null,
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+        ]);
+    }
+
+    /**
+     * Validar credenciales
+     */
+    public function validateCredentials(string $email, string $password): bool
+    {
+        $user = User::where('email', $email)->first();
+        
+        if (!$user) {
+            return false;
+        }
+
+        return Hash::check($password, $user->password);
+    }
+
+    /**
+     * Crear token de API
+     */
+    public function createApiToken(User $user, string $name): string
+    {
+        return $user->createToken($name)->plainTextToken;
+    }
+
+    /**
+     * Revocar todos los tokens del usuario
+     */
+    public function revokeAllTokens(User $user): void
+    {
+        $user->tokens()->delete();
+    }
+
+    /**
+     * Actualizar contraseña
+     */
+    public function updatePassword(User $user, string $newPassword): void
+    {
+        $user->update([
+            'password' => Hash::make($newPassword)
+        ]);
+    }
+}
+```
+
+## UserController
+
+### Gestión de Perfil
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\UserRequest;
+use App\Http\Resources\UserResource;
+use App\Services\AuthService;
+use Illuminate\Http\Request;
+
+class UserController extends Controller
+{
+    private AuthService $authService;
+
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
+
+    /**
+     * Obtener perfil del usuario autenticado
+     */
+    public function profile(Request $request)
+    {
+        try {
+            return $this->successResponse(new UserResource($request->user()));
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+
+    /**
+     * Actualizar perfil
+     */
+    public function updateProfile(UserRequest $request)
+    {
+        try {
+            $user = $request->user();
+            $user->update($request->validated());
+
+            return $this->successResponse(
+                new UserResource($user->fresh()),
+                'Perfil actualizado correctamente'
+            );
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+
+    /**
+     * Actualizar contraseña
+     */
+    public function updatePassword(UserRequest $request)
+    {
+        try {
+            $this->authService->updatePassword(
+                $request->user(),
+                $request->password
+            );
+
+            return $this->successResponse(null, 'Contraseña actualizada correctamente');
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+}
+```
+
+## Form Requests
+
+### AuthRequest
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests;
+
+class AuthRequest extends ApiRequest
+{
+    public function rules(): array
+    {
+        return [
+            'name' => 'nullable|string|max:255',
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|min:8',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'email.required' => 'El correo electrónico es obligatorio',
+            'email.email' => 'El correo electrónico debe ser válido',
+            'password.required' => 'La contraseña es obligatoria',
+            'password.min' => 'La contraseña debe tener al menos 8 caracteres',
+        ];
+    }
+}
+```
+
+### UserRequest
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests;
+
+class UserRequest extends ApiRequest
+{
+    public function rules(): array
+    {
+        $userId = $this->user()?->id;
+
+        // Diferentes reglas según la ruta
+        if ($this->routeIs('users.password.update')) {
+            return [
+                'password' => 'required|string|min:8|confirmed',
+            ];
+        }
+
+        return [
+            'name' => 'string|max:255',
+            'email' => "email|unique:users,email,{$userId}",
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'name.max' => 'El nombre no puede exceder los 255 caracteres',
+            'email.email' => 'El correo electrónico debe ser válido',
+            'email.unique' => 'Este correo electrónico ya está registrado',
+            'password.required' => 'La contraseña es obligatoria',
+            'password.min' => 'La contraseña debe tener al menos 8 caracteres',
+            'password.confirmed' => 'Las contraseñas no coinciden',
+        ];
+    }
+}
+```
+
+## Eventos de Autenticación
+
+### UserRegistered
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Events;
+
+use App\Models\User;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
+
+class UserRegistered
+{
+    use Dispatchable, SerializesModels;
+
+    public function __construct(public User $user)
+    {
+    }
+}
+```
+
+### Listeners
+
+Registrar en `EventServiceProvider`:
+
+```php
+protected $listen = [
+    UserRegistered::class => [
+        CreateInitialUserSettings::class,
+        SendWelcomeEmail::class,
+    ],
+];
+```
+
+## Rutas de Autenticación
+
+```php
+Route::prefix('v1')->group(function () {
+    // Pública
+    Route::post('/auth', [AuthController::class, 'store'])->name('auth.store');
+
+    // Protegidas
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/auth', [AuthController::class, 'show'])->name('auth.show');
+        Route::delete('/auth', [AuthController::class, 'destroy'])->name('auth.destroy');
+
+        Route::get('/users/profile', [UserController::class, 'profile'])->name('users.profile');
+        Route::put('/users/profile', [UserController::class, 'updateProfile'])->name('users.profile.update');
+        Route::put('/users/password', [UserController::class, 'updatePassword'])->name('users.password.update');
+    });
+});
+```
+
+## Respuestas Esperadas
+
+### Login/Registro Exitoso
+
+```json
+{
+  "success": true,
+  "message": "Usuario autenticado exitosamente",
+  "data": {
+    "id": 1,
+    "name": "Juan",
+    "email": "juan@example.com",
+    "token": "1|abc123..."
+  }
+}
+```
+
+### Error de Credenciales
+
+```json
+{
+  "success": false,
+  "message": "Las credenciales proporcionadas son incorrectas.",
+  "errors": {
+    "email": ["Las credenciales proporcionadas son incorrectas."]
+  }
+}
+```
+
+## Seguridad
+
+- Usar HTTPS en producción
+- Tokens expiran según configuración de Sanctum
+- Contraseñas hasheadas con bcrypt
+- Rate limiting en endpoint de auth

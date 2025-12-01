@@ -1,0 +1,408 @@
+---
+description: Reglas para la creación y modificación de Controladores
+globs:
+    - "app/Http/Controllers/**/*.php"
+---
+
+# Controladores
+
+## Regla Principal
+
+**TODOS los controladores deben extender de `App\Http\Controllers\Controller`** para heredar los helpers de respuesta.
+
+## Tipos de Controladores
+
+### 1. Controladores CRUD
+
+Para recursos con operaciones estándar (index, store, show, update, destroy).
+
+### 2. Controladores de Acción Específica
+
+Para operaciones que NO son CRUD estándar:
+
+-   `AuthController` - Login, registro, logout
+-   `ReportController` - Generación de reportes
+-   `ExportController` - Exportación de datos
+-   `DashboardController` - Métricas y estadísticas
+-   `WebhookController` - Recepción de webhooks
+
+## Responsabilidad
+
+Los controladores son **delegadores**. Deben:
+
+-   Recibir y validar requests (mediante FormRequest cuando aplica)
+-   Extraer parámetros de la solicitud
+-   Delegar la lógica al Service correspondiente
+-   Formatear y devolver respuestas JSON
+
+NO deben:
+
+-   Contener lógica de negocio compleja
+-   Acceder directamente a modelos para operaciones complejas
+-   Manipular datos más allá de la extracción de parámetros
+
+## Métodos Heredados del Controller Base
+
+```php
+// Respuestas
+protected function successResponse($data, string $message = 'Operación exitosa', int $status = 200): JsonResponse
+protected function errorResponse(string $message, int $status = 400, array $errors = []): JsonResponse
+protected function handleError(\Exception $e, int $defaultCode = 400): JsonResponse
+
+// Transformación (para controladores CRUD)
+protected function transformCollection(LengthAwarePaginator $collection): ResourceCollection
+protected function transformResource($resource): JsonResource
+
+// Parámetros (para controladores CRUD con filtrado)
+protected function getQueryParams(Request $request): array
+protected function getFilterParams(Request $request): array
+protected function getSortingParams(Request $request): array
+protected function getPaginationParams(Request $request): array
+```
+
+---
+
+## Controladores CRUD
+
+### Estructura
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\TaskRequest;
+use App\Services\TaskService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class TaskController extends Controller
+{
+    public function __construct(
+        protected TaskService $taskService
+    ) {}
+
+    public function index(Request $request): JsonResponse
+    {
+        try {
+            $params = $this->getQueryParams($request);
+            $tasks = $this->taskService->getTasks($params);
+
+            return $this->successResponse(
+                $this->transformCollection($tasks)
+            );
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+
+    public function store(TaskRequest $request): JsonResponse
+    {
+        try {
+            $task = $this->taskService->createTask($request->validated());
+
+            return $this->successResponse(
+                $this->transformResource($task),
+                'Tarea creada correctamente',
+                201
+            );
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+
+    public function show(int $id): JsonResponse
+    {
+        try {
+            $task = $this->taskService->getTask($id);
+
+            return $this->successResponse(
+                $this->transformResource($task)
+            );
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+
+    public function update(TaskRequest $request, int $id): JsonResponse
+    {
+        try {
+            $task = $this->taskService->updateTask($id, $request->validated());
+
+            return $this->successResponse(
+                $this->transformResource($task),
+                'Tarea actualizada correctamente'
+            );
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        try {
+            $this->taskService->deleteTask($id);
+
+            return $this->successResponse(null, 'Tarea eliminada correctamente');
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+
+    protected function getAllowedFilters(): array
+    {
+        return ['global', 'status', 'priority'];
+    }
+}
+```
+
+---
+
+## Controladores de Acción Específica
+
+### Estructura
+
+No necesitan implementar todos los métodos CRUD. Implementan solo las acciones necesarias.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Services\ReportService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class ReportController extends Controller
+{
+    public function __construct(
+        private ReportService $reportService
+    ) {}
+
+    /**
+     * Generar reporte de ventas
+     */
+    public function sales(Request $request): JsonResponse
+    {
+        try {
+            $from = Carbon::parse($request->input('from'));
+            $to = Carbon::parse($request->input('to'));
+
+            $report = $this->reportService->generateSalesReport($from, $to);
+
+            return $this->successResponse($report, 'Reporte generado correctamente');
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+
+    /**
+     * Obtener métricas del dashboard
+     */
+    public function dashboard(): JsonResponse
+    {
+        try {
+            $metrics = $this->reportService->getDashboardMetrics();
+
+            return $this->successResponse($metrics);
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+}
+```
+
+### ✅ Ejemplo: AuthController
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Events\UserRegistered;
+use App\Http\Requests\AuthRequest;
+use App\Http\Resources\AuthResource;
+use App\Models\User;
+use App\Services\AuthService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class AuthController extends Controller
+{
+    public function __construct(
+        private AuthService $authService
+    ) {}
+
+    /**
+     * Login o Registro unificado
+     */
+    public function store(AuthRequest $request): JsonResponse
+    {
+        try {
+            $user = User::where('email', $request->email)->first();
+
+            if (!$user) {
+                $user = $this->authService->createUser($request->validated());
+                event(new UserRegistered($user));
+
+                $user->token = $this->authService->createApiToken($user, 'auth-token');
+                return $this->successResponse(new AuthResource($user), 'Usuario registrado exitosamente', 201);
+            }
+
+            if (!$this->authService->validateCredentials($request->email, $request->password)) {
+                return $this->errorResponse(
+                    'Las credenciales proporcionadas son incorrectas.',
+                    422,
+                    ['email' => ['Las credenciales proporcionadas son incorrectas.']]
+                );
+            }
+
+            $user->token = $this->authService->createApiToken($user, 'auth-token');
+            return $this->successResponse(new AuthResource($user), 'Usuario autenticado exitosamente');
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+
+    /**
+     * Obtener usuario autenticado
+     */
+    public function show(Request $request): JsonResponse
+    {
+        try {
+            return $this->successResponse(new AuthResource($request->user()));
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+
+    /**
+     * Logout
+     */
+    public function destroy(Request $request): JsonResponse
+    {
+        try {
+            $this->authService->revokeAllTokens($request->user());
+            return $this->successResponse(null, 'Sesión cerrada exitosamente');
+        } catch (\Exception $e) {
+            return $this->handleError($e);
+        }
+    }
+}
+```
+
+### ✅ Ejemplo: ExportController
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Services\ExportService;
+use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+class ExportController extends Controller
+{
+    public function __construct(
+        private ExportService $exportService
+    ) {}
+
+    /**
+     * Exportar productos a CSV
+     */
+    public function products(): StreamedResponse
+    {
+        return $this->exportService->exportProductsToCsv();
+    }
+
+    /**
+     * Exportar órdenes a Excel
+     */
+    public function orders(): StreamedResponse
+    {
+        return $this->exportService->exportOrdersToExcel();
+    }
+}
+```
+
+---
+
+## Controladores Sin Service
+
+Para operaciones muy simples, el controlador puede operar directamente:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\JsonResponse;
+
+class HealthController extends Controller
+{
+    /**
+     * Health check endpoint
+     */
+    public function __invoke(): JsonResponse
+    {
+        return $this->successResponse([
+            'status' => 'ok',
+            'timestamp' => now()->toIso8601String(),
+        ]);
+    }
+}
+```
+
+---
+
+## Cuándo Usar Cada Tipo
+
+| Tipo                     | Usar cuando                                                |
+| ------------------------ | ---------------------------------------------------------- |
+| **CRUD Controller**      | Recurso con operaciones estándar (productos, tareas, etc.) |
+| **Action Controller**    | Operaciones específicas (auth, reportes, exports)          |
+| **Invokable Controller** | Una sola acción (health check, webhook)                    |
+| **Sin Service**          | Operaciones triviales sin lógica de negocio                |
+
+---
+
+## ❌ Errores Comunes
+
+```php
+// ❌ No extender de Controller
+class TaskController  // Falta: extends Controller
+{
+}
+
+// ❌ Lógica de negocio en el controlador
+public function index()
+{
+    $tasks = Task::where('status', 'active')
+        ->where('user_id', auth()->id())
+        ->orderBy('priority')
+        ->get();  // Esta lógica debería estar en el Service
+}
+
+// ❌ Validación manual en lugar de FormRequest
+public function store(Request $request)
+{
+    $validated = $request->validate([...]);  // Usar TaskRequest
+}
+
+// ❌ Respuesta sin formato estándar
+public function show(int $id)
+{
+    return Task::find($id);  // Usar successResponse()
+}
+```

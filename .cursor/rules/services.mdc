@@ -1,0 +1,364 @@
+---
+description: Reglas para la creación y modificación de Servicios
+globs:
+    - "app/Services/**/*.php"
+---
+
+# Servicios (Service Layer)
+
+## Tipos de Servicios
+
+Existen **dos tipos** de servicios en el arquetipo:
+
+### 1. Servicios CRUD (extienden de `Service`)
+
+Para recursos que necesitan operaciones CRUD completas con filtrado y paginación.
+
+```php
+class TaskService extends Service
+{
+    public function __construct()
+    {
+        parent::__construct(new Task());
+    }
+}
+```
+
+### 2. Servicios Utilitarios (NO extienden de `Service`)
+
+Para lógica de negocio que **NO requiere CRUD**, como:
+
+-   Servicios de autenticación (`AuthService`)
+-   Servicios de notificaciones
+-   Servicios de reportes
+-   Servicios de integración con APIs externas
+-   Servicios de cálculos o procesamiento
+
+```php
+class AuthService
+{
+    public function validateCredentials(string $email, string $password): bool { }
+    public function createApiToken(User $user, string $name): string { }
+}
+
+class ReportService
+{
+    public function generateSalesReport(Carbon $from, Carbon $to): array { }
+}
+
+class NotificationService
+{
+    public function sendPushNotification(User $user, string $message): void { }
+}
+```
+
+## Cuándo Extender de Service Base
+
+| Extender `Service`   | NO extender `Service`      |
+| -------------------- | -------------------------- |
+| Recursos con CRUD    | Lógica sin modelo asociado |
+| Necesita paginación  | Operaciones específicas    |
+| Necesita filtrado    | Integraciones externas     |
+| Gestión de entidades | Servicios auxiliares       |
+
+## Responsabilidad Común
+
+Todos los servicios (CRUD o no) contienen **lógica de negocio**. NO deben:
+
+-   Manejar requests HTTP directamente
+-   Formatear respuestas JSON
+-   Validar datos de entrada (responsabilidad de los Requests)
+
+---
+
+## Servicios CRUD (extienden Service)
+
+### Estructura
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Models\NombreModelo;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
+
+class NombreModeloService extends Service
+{
+    public function __construct()
+    {
+        parent::__construct(new NombreModelo());
+    }
+
+    // Métodos públicos del servicio
+}
+```
+
+### Métodos Heredados del Service Base
+
+```php
+// CRUD básico
+protected function getAll(int $page, int $perPage, ?Builder $query = null): LengthAwarePaginator
+protected function getById(int $id): Model
+protected function getByIdWith(int $id, array $relation): Model
+protected function create(array $data): Model
+protected function update(int $id, array $data): Model
+protected function delete(int $id): bool
+
+// Filtrado y ordenamiento
+protected function getFilteredAndSorted(Builder $query, array $params): Builder
+protected function applyFilters(Builder $query, array $filters): Builder
+protected function applySorting(Builder $query, string $sortBy, string $sortOrder): Builder
+protected function applyGlobalSearch(Builder $query, string $value): Builder
+```
+
+### Filtros Personalizados
+
+Para agregar filtros específicos, crear métodos `filterBy{Campo}`:
+
+```php
+protected function filterByStatus(Builder $query, string $value): Builder
+{
+    return $query->where('status', $value);
+}
+
+protected function filterByPriority(Builder $query, int $value): Builder
+{
+    return $query->where('priority', $value);
+}
+```
+
+### Búsqueda Global
+
+```php
+protected function getGlobalSearchColumns(): array
+{
+    return ['title', 'description'];
+}
+
+protected function getGlobalSearchRelations(): array
+{
+    return [
+        'category' => ['name'],
+    ];
+}
+```
+
+---
+
+## Servicios Utilitarios (NO extienden Service)
+
+### Estructura
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+class NombreService
+{
+    // Inyectar dependencias si es necesario
+    public function __construct(
+        private readonly SomeDependency $dependency
+    ) {}
+
+    // Métodos públicos con lógica de negocio
+}
+```
+
+### ✅ Ejemplo: AuthService (NO extiende Service)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+
+class AuthService
+{
+    /**
+     * Crear nuevo usuario
+     */
+    public function createUser(array $data): User
+    {
+        return User::create([
+            'name' => $data['name'] ?? null,
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+        ]);
+    }
+
+    /**
+     * Validar credenciales
+     */
+    public function validateCredentials(string $email, string $password): bool
+    {
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return false;
+        }
+
+        return Hash::check($password, $user->password);
+    }
+
+    /**
+     * Crear token de API
+     */
+    public function createApiToken(User $user, string $name): string
+    {
+        return $user->createToken($name)->plainTextToken;
+    }
+
+    /**
+     * Revocar todos los tokens
+     */
+    public function revokeAllTokens(User $user): void
+    {
+        $user->tokens()->delete();
+    }
+}
+```
+
+### ✅ Ejemplo: ReportService (NO extiende Service)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+
+class ReportService
+{
+    /**
+     * Generar reporte de ventas
+     */
+    public function generateSalesReport(Carbon $from, Carbon $to): array
+    {
+        return DB::table('orders')
+            ->whereBetween('created_at', [$from, $to])
+            ->selectRaw('DATE(created_at) as date, SUM(total) as total')
+            ->groupBy('date')
+            ->get()
+            ->toArray();
+    }
+
+    /**
+     * Obtener métricas del dashboard
+     */
+    public function getDashboardMetrics(): array
+    {
+        return [
+            'total_users' => User::count(),
+            'total_orders' => Order::count(),
+            'revenue_today' => Order::whereDate('created_at', today())->sum('total'),
+        ];
+    }
+}
+```
+
+---
+
+## ✅ Ejemplo Completo: Servicio CRUD
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Models\Task;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
+
+class TaskService extends Service
+{
+    public function __construct()
+    {
+        parent::__construct(new Task());
+    }
+
+    public function getTasks(array $params): LengthAwarePaginator
+    {
+        $query = $this->model->query();
+        $query = $this->getFilteredAndSorted($query, $params);
+
+        return $this->getAll($params['page'], $params['per_page'], $query);
+    }
+
+    public function getTask(int $id): Task
+    {
+        return $this->getById($id);
+    }
+
+    public function createTask(array $data): Task
+    {
+        return $this->create($data);
+    }
+
+    public function updateTask(int $id, array $data): Task
+    {
+        return $this->update($id, $data);
+    }
+
+    public function deleteTask(int $id): bool
+    {
+        return $this->delete($id);
+    }
+
+    protected function filterByStatus(Builder $query, string $value): Builder
+    {
+        return $query->where('status', $value);
+    }
+
+    protected function getGlobalSearchColumns(): array
+    {
+        return ['title', 'description'];
+    }
+}
+```
+
+---
+
+## ❌ Errores Comunes
+
+```php
+// ❌ Servicio utilitario extendiendo Service innecesariamente
+class EmailService extends Service  // NO necesita CRUD
+{
+    public function sendEmail(string $to, string $subject): void { }
+}
+
+// ❌ Recibir Request directamente
+class TaskService extends Service
+{
+    public function getTasks(Request $request)  // Debe recibir array $params
+    {
+        // ...
+    }
+}
+
+// ❌ Formatear respuestas (responsabilidad del controlador)
+class TaskService extends Service
+{
+    public function getTasks(array $params)
+    {
+        $tasks = $this->getAll(...);
+        return response()->json($tasks);  // ❌ No hacer esto
+    }
+}
+```

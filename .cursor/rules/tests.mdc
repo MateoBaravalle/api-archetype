@@ -1,0 +1,423 @@
+---
+description: Reglas para la escritura de tests
+globs:
+    - "tests/**/*.php"
+---
+
+# Testing
+
+## Estructura de Tests
+
+```txt
+tests/
+├── Feature/                    # Tests de integración
+│   ├── Api/                    # Tests de endpoints API
+│   ├── Auth/                   # Tests de autenticación
+│   └── Events/                 # Tests de eventos
+├── Unit/                       # Tests unitarios
+│   ├── Models/
+│   ├── Requests/
+│   └── Services/
+├── CreatesApplication.php
+└── TestCase.php
+```
+
+## Tipos de Tests
+
+### 1. Tests de Feature (Integración)
+
+Para probar endpoints completos de la API.
+
+```php
+class ProductApiTest extends TestCase { }
+class AuthenticationTest extends TestCase { }
+```
+
+### 2. Tests Unitarios
+
+Para probar componentes individuales aislados.
+
+```php
+class ProductServiceTest extends TestCase { }
+class ProductRequestTest extends TestCase { }
+```
+
+### 3. Tests de Eventos
+
+Para verificar que los eventos se disparan correctamente.
+
+```php
+class UserRegisteredEventTest extends TestCase { }
+```
+
+## Cuándo Escribir Cada Tipo
+
+| Tipo | Probar |
+|------|--------|
+| Feature/Api | Endpoints HTTP, respuestas JSON, autenticación |
+| Unit/Services | Lógica de negocio, filtros, cálculos |
+| Unit/Requests | Reglas de validación |
+| Unit/Models | Relaciones, scopes, mutators |
+
+---
+
+## Convenciones de Nomenclatura
+
+### Archivos
+
+```txt
+tests/Feature/Api/ProductApiTest.php
+tests/Feature/Auth/AuthenticationTest.php
+tests/Unit/Services/ProductServiceTest.php
+tests/Unit/Requests/ProductRequestTest.php
+```
+
+### Métodos
+
+Formato: `test_{acción}_{condición}`
+
+```php
+// ✅ Correctos
+public function test_can_list_products(): void
+public function test_can_create_product_with_valid_data(): void
+public function test_cannot_create_product_without_title(): void
+public function test_returns_404_for_nonexistent_product(): void
+public function test_unauthenticated_user_cannot_access_protected_route(): void
+
+// ❌ Incorrectos
+public function testListProducts(): void  // Sin separación clara
+public function test_list(): void  // Muy vago
+```
+
+---
+
+## Tests de Feature (API)
+
+### Estructura Base
+
+```php
+<?php
+
+namespace Tests\Feature\Api;
+
+use App\Models\Product;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class ProductApiTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private User $user;
+    private string $token;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        
+        $this->user = User::factory()->create();
+        $this->token = $this->user->createToken('test')->plainTextToken;
+    }
+
+    private function authHeaders(): array
+    {
+        return ['Authorization' => "Bearer {$this->token}"];
+    }
+}
+```
+
+### Test de Listado
+
+```php
+public function test_can_list_products(): void
+{
+    Product::factory()->count(5)->create();
+
+    $response = $this->withHeaders($this->authHeaders())
+        ->getJson('/api/v1/products');
+
+    $response->assertStatus(200)
+        ->assertJsonStructure([
+            'success',
+            'message',
+            'data' => [
+                'data' => [['id', 'name', 'price']],
+                'meta' => ['pagination']
+            ]
+        ])
+        ->assertJsonPath('success', true);
+}
+```
+
+### Test de Creación
+
+```php
+public function test_can_create_product(): void
+{
+    $data = [
+        'name' => 'New Product',
+        'price' => 99.99,
+    ];
+
+    $response = $this->withHeaders($this->authHeaders())
+        ->postJson('/api/v1/products', $data);
+
+    $response->assertStatus(201)
+        ->assertJsonPath('data.name', 'New Product');
+
+    $this->assertDatabaseHas('products', ['name' => 'New Product']);
+}
+
+public function test_cannot_create_product_without_required_fields(): void
+{
+    $response = $this->withHeaders($this->authHeaders())
+        ->postJson('/api/v1/products', []);
+
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['name', 'price']);
+}
+```
+
+### Test de Autenticación
+
+```php
+public function test_unauthenticated_user_cannot_access_products(): void
+{
+    $response = $this->getJson('/api/v1/products');
+
+    $response->assertStatus(401);
+}
+```
+
+---
+
+## Tests de Rutas Públicas
+
+Para endpoints que NO requieren autenticación:
+
+```php
+public function test_can_access_public_categories(): void
+{
+    Category::factory()->count(3)->create();
+
+    $response = $this->getJson('/api/v1/categories');  // Sin auth headers
+
+    $response->assertStatus(200);
+}
+
+public function test_can_login_with_valid_credentials(): void
+{
+    $user = User::factory()->create([
+        'password' => Hash::make('password123')
+    ]);
+
+    $response = $this->postJson('/api/v1/auth', [
+        'email' => $user->email,
+        'password' => 'password123'
+    ]);
+
+    $response->assertStatus(200)
+        ->assertJsonStructure(['data' => ['token']]);
+}
+```
+
+---
+
+## Tests Unitarios
+
+### Test de Service
+
+```php
+<?php
+
+namespace Tests\Unit\Services;
+
+use App\Models\Product;
+use App\Services\ProductService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class ProductServiceTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private ProductService $service;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->service = new ProductService();
+    }
+
+    public function test_can_get_products_with_pagination(): void
+    {
+        Product::factory()->count(15)->create();
+
+        $params = [
+            'page' => 1,
+            'per_page' => 10,
+            'sort_by' => 'created_at',
+            'sort_order' => 'desc',
+            'filters' => []
+        ];
+
+        $result = $this->service->getProducts($params);
+
+        $this->assertEquals(15, $result->total());
+        $this->assertCount(10, $result->items());
+    }
+
+    public function test_throws_exception_for_nonexistent_product(): void
+    {
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+
+        $this->service->getProduct(99999);
+    }
+}
+```
+
+### Test de Service Sin CRUD
+
+```php
+<?php
+
+namespace Tests\Unit\Services;
+
+use App\Models\User;
+use App\Services\AuthService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Tests\TestCase;
+
+class AuthServiceTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private AuthService $service;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->service = new AuthService();
+    }
+
+    public function test_can_validate_correct_credentials(): void
+    {
+        User::factory()->create([
+            'email' => 'test@example.com',
+            'password' => Hash::make('password123')
+        ]);
+
+        $result = $this->service->validateCredentials('test@example.com', 'password123');
+
+        $this->assertTrue($result);
+    }
+
+    public function test_rejects_invalid_credentials(): void
+    {
+        User::factory()->create([
+            'email' => 'test@example.com',
+            'password' => Hash::make('password123')
+        ]);
+
+        $result = $this->service->validateCredentials('test@example.com', 'wrongpassword');
+
+        $this->assertFalse($result);
+    }
+}
+```
+
+### Test de Request
+
+```php
+<?php
+
+namespace Tests\Unit\Requests;
+
+use App\Http\Requests\ProductRequest;
+use Illuminate\Support\Facades\Validator;
+use Tests\TestCase;
+
+class ProductRequestTest extends TestCase
+{
+    private function validate(array $data, string $method = 'POST'): array
+    {
+        $request = new ProductRequest();
+        $request->setMethod($method);
+        
+        $validator = Validator::make($data, $request->rules());
+        
+        return [
+            'passes' => $validator->passes(),
+            'errors' => $validator->errors()->toArray()
+        ];
+    }
+
+    public function test_name_is_required_on_create(): void
+    {
+        $result = $this->validate(['price' => 100], 'POST');
+
+        $this->assertFalse($result['passes']);
+        $this->assertArrayHasKey('name', $result['errors']);
+    }
+
+    public function test_name_is_optional_on_update(): void
+    {
+        $result = $this->validate(['price' => 100], 'PUT');
+
+        $this->assertTrue($result['passes']);
+    }
+}
+```
+
+---
+
+## Assertions Comunes
+
+```php
+// Respuesta JSON
+$response->assertStatus(200);
+$response->assertJsonPath('success', true);
+$response->assertJsonStructure(['data' => ['id', 'name']]);
+$response->assertJsonCount(5, 'data.data');
+$response->assertJsonValidationErrors(['name']);
+
+// Base de datos
+$this->assertDatabaseHas('products', ['name' => 'Test']);
+$this->assertDatabaseMissing('products', ['name' => 'Deleted']);
+$this->assertSoftDeleted('products', ['id' => 1]);
+$this->assertDatabaseCount('products', 5);
+```
+
+---
+
+## Factories
+
+```php
+// Crear uno
+$product = Product::factory()->create();
+
+// Crear múltiples
+$products = Product::factory()->count(10)->create();
+
+// Con estado específico
+$activeProducts = Product::factory()->active()->count(5)->create();
+
+// Sobrescribir atributos
+$product = Product::factory()->create(['name' => 'Specific Name']);
+```
+
+---
+
+## Cuándo NO Escribir Tests
+
+- Getters/setters triviales
+- Código de framework (Laravel ya lo testea)
+- Código generado automáticamente
+
+## Prioridad de Tests
+
+1. **Alta**: Endpoints críticos (auth, pagos, CRUD principal)
+2. **Media**: Lógica de negocio compleja en servicios
+3. **Baja**: Validaciones simples, transformaciones de datos

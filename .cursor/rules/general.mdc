@@ -1,0 +1,158 @@
+---
+description: Convenciones generales del proyecto Laravel API Archetype
+globs:
+    - "**/*.php"
+alwaysApply: true
+---
+
+# Laravel API Archetype - Convenciones Generales
+
+## Idioma y Nomenclatura
+
+-   **TODOS los nombres de código deben estar en inglés**: clases, métodos, variables, constantes, tablas, columnas
+-   Los comentarios y documentación pueden estar en español
+-   Los mensajes de error y respuestas al usuario pueden estar en español
+
+## Estructura de Archivos
+
+```txt
+app/
+├── Http/
+│   ├── Controllers/     # Controladores (extienden de Controller.php)
+│   ├── Requests/        # Validación (extienden de ApiRequest.php)
+│   └── Resources/       # Transformadores (extienden de ApiResource/ApiCollection)
+├── Models/              # Modelos Eloquent
+├── Services/            # Lógica de negocio
+├── Events/              # Eventos del dominio
+├── Listeners/           # Manejadores de eventos
+└── Traits/              # Traits reutilizables
+```
+
+## Estándares de Código PHP
+
+### Obligatorios
+
+-   Usar `declare(strict_types=1);` en TODOS los archivos PHP
+-   Seguir PSR-12 para formato de código
+-   Usar type hints en parámetros y retornos
+-   Documentar métodos públicos con PHPDoc
+
+### Flexibilidad en Herencia
+
+No todos los componentes necesitan extender de clases base:
+
+| Componente | Extender de clase base cuando...     | NO extender cuando...                  |
+| ---------- | ------------------------------------ | -------------------------------------- |
+| Modelo     | Necesita soft deletes y hooks        | Es User (Authenticatable) o log        |
+| Service    | Necesita operaciones CRUD            | Es servicio utilitario (auth, reports) |
+| Controller | Siempre (para helpers de respuesta)  | -                                      |
+| Request    | Necesita sanitización y formato JSON | Validación muy simple                  |
+| Resource   | Necesita transformar modelos         | Respuesta es array simple              |
+
+## ✅ Ejemplo Correcto
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Models\Product;
+use Illuminate\Pagination\LengthAwarePaginator;
+
+class ProductService extends Service
+{
+    /**
+     * Obtiene productos con filtros aplicados
+     */
+    public function getProducts(array $params): LengthAwarePaginator
+    {
+        $query = $this->model->query();
+        $query = $this->getFilteredAndSorted($query, $params);
+
+        return $this->getAll($params['page'], $params['per_page'], $query);
+    }
+}
+```
+
+## ✅ Ejemplo Correcto (Servicio Sin CRUD)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+
+class AuthService  // NO extiende Service - no necesita CRUD
+{
+    public function validateCredentials(string $email, string $password): bool
+    {
+        $user = User::where('email', $email)->first();
+        return $user && Hash::check($password, $user->password);
+    }
+}
+```
+
+## ❌ Ejemplo Incorrecto
+
+```php
+<?php
+namespace App\Services;
+
+class ServicioProducto extends Service  // Nombre en español
+{
+    public function obtenerProductos($params)  // Sin type hints, nombre en español
+    {
+        // ...
+    }
+}
+```
+
+## Respuestas JSON Estandarizadas
+
+Todas las respuestas de la API deben seguir este formato:
+
+### Éxito
+
+```json
+{
+    "success": true,
+    "message": "Mensaje descriptivo",
+    "data": { ... }
+}
+```
+
+### Error
+
+```json
+{
+    "success": false,
+    "message": "Descripción del error",
+    "errors": { "campo": ["mensaje de error"] }
+}
+```
+
+### Casos donde NO usar Resources
+
+Para respuestas simples sin modelo:
+
+```php
+return $this->successResponse([
+    'status' => 'ok',
+    'version' => '1.0.0',
+]);
+
+return $this->successResponse(null, 'Operación completada');
+```
+
+## Principios de Diseño
+
+1. **Separación de responsabilidades**: Cada capa tiene su función específica
+2. **No sobre-ingeniería**: No crear clases base o abstracciones si no son necesarias
+3. **Pragmatismo**: Las reglas son guías, no leyes absolutas
+4. **Consistencia**: Seguir los patrones establecidos en el proyecto existente

@@ -1,0 +1,324 @@
+---
+description: Reglas para el sistema de eventos y listeners
+globs:
+  - "app/Events/**/*.php"
+  - "app/Listeners/**/*.php"
+  - "app/Providers/EventServiceProvider.php"
+---
+
+# Eventos y Listeners
+
+## Arquitectura
+
+El sistema de eventos permite desacoplar acciones secundarias de la lógica principal.
+
+```
+Acción Principal → Dispara Evento → Listeners ejecutan acciones secundarias
+```
+
+## Cuándo Usar Eventos
+
+✅ **Usar eventos para:**
+- Enviar notificaciones (email, SMS, push)
+- Logging de actividad
+- Sincronización con sistemas externos
+- Creación de registros relacionados
+- Actualización de caché
+- Tareas asíncronas
+
+❌ **NO usar eventos para:**
+- Lógica de negocio crítica
+- Validaciones
+- Operaciones que deben ser transaccionales
+
+## Estructura de un Evento
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Events;
+
+use App\Models\Order;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
+
+class OrderCreated
+{
+    use Dispatchable, SerializesModels;
+
+    public function __construct(public Order $order)
+    {
+    }
+}
+```
+
+### Reglas de Eventos
+
+1. Nombre en **pasado**: `UserRegistered`, `OrderCreated`, `PaymentProcessed`
+2. Incluir el **modelo afectado** como propiedad pública
+3. Usar `SerializesModels` para serialización en colas
+4. Usar `Dispatchable` para el helper `dispatch()`
+
+## Estructura de un Listener
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Listeners;
+
+use App\Events\OrderCreated;
+use App\Mail\OrderConfirmation;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\Mail;
+
+class SendOrderConfirmationEmail implements ShouldQueue
+{
+    /**
+     * Handle the event.
+     */
+    public function handle(OrderCreated $event): void
+    {
+        Mail::to($event->order->user)->send(
+            new OrderConfirmation($event->order)
+        );
+    }
+}
+```
+
+### Reglas de Listeners
+
+1. Nombre **descriptivo de la acción**: `SendOrderConfirmationEmail`, `CreateInitialUserSettings`
+2. Implementar `ShouldQueue` para tareas que no necesitan ser síncronas
+3. Un listener = una responsabilidad
+4. Type hint del evento en el método `handle()`
+
+## Listeners Asíncronos vs Síncronos
+
+### Asíncrono (Recomendado para la mayoría)
+
+```php
+class SendWelcomeEmail implements ShouldQueue
+{
+    public function handle(UserRegistered $event): void
+    {
+        // Se ejecuta en background
+    }
+}
+```
+
+### Síncrono (Solo cuando es crítico)
+
+```php
+class CreateInitialUserSettings  // Sin ShouldQueue
+{
+    public function handle(UserRegistered $event): void
+    {
+        // Se ejecuta inmediatamente
+    }
+}
+```
+
+## Registro de Eventos
+
+En `app/Providers/EventServiceProvider.php`:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Providers;
+
+use App\Events\OrderCreated;
+use App\Events\UserRegistered;
+use App\Listeners\CreateInitialUserSettings;
+use App\Listeners\SendOrderConfirmationEmail;
+use App\Listeners\SendWelcomeEmail;
+use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+
+class EventServiceProvider extends ServiceProvider
+{
+    protected $listen = [
+        UserRegistered::class => [
+            CreateInitialUserSettings::class,
+            SendWelcomeEmail::class,
+        ],
+        OrderCreated::class => [
+            SendOrderConfirmationEmail::class,
+            UpdateInventory::class,
+            NotifyAdminNewOrder::class,
+        ],
+    ];
+}
+```
+
+## Disparar Eventos
+
+### Desde Controladores/Services
+
+```php
+use App\Events\UserRegistered;
+
+// Opción 1: Helper event()
+event(new UserRegistered($user));
+
+// Opción 2: Método estático dispatch()
+UserRegistered::dispatch($user);
+```
+
+### Desde Modelos (Eventos de Eloquent)
+
+```php
+class Order extends Model
+{
+    protected $dispatchesEvents = [
+        'created' => OrderCreated::class,
+    ];
+}
+```
+
+## Eventos del Arquetipo
+
+### UserRegistered
+
+Disparado cuando un nuevo usuario se registra:
+
+```php
+// En AuthController
+if (!$user) {
+    $user = $this->authService->createUser($request->validated());
+    event(new UserRegistered($user));
+    // ...
+}
+```
+
+**Listeners asociados:**
+- `CreateInitialUserSettings`: Crea configuraciones por defecto
+- `SendWelcomeEmail`: Envía email de bienvenida
+
+## ✅ Ejemplo Completo Correcto
+
+### Evento
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Events;
+
+use App\Models\Task;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
+
+class TaskCompleted
+{
+    use Dispatchable, SerializesModels;
+
+    public function __construct(public Task $task)
+    {
+    }
+}
+```
+
+### Listener
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Listeners;
+
+use App\Events\TaskCompleted;
+use App\Notifications\TaskCompletedNotification;
+use Illuminate\Contracts\Queue\ShouldQueue;
+
+class NotifyTaskOwner implements ShouldQueue
+{
+    public function handle(TaskCompleted $event): void
+    {
+        $event->task->user->notify(
+            new TaskCompletedNotification($event->task)
+        );
+    }
+}
+```
+
+### Uso
+
+```php
+// En TaskService
+public function completeTask(int $id): Task
+{
+    $task = $this->update($id, ['status' => 'completed']);
+    
+    event(new TaskCompleted($task));
+    
+    return $task;
+}
+```
+
+## ❌ Ejemplo Incorrecto
+
+```php
+<?php
+
+namespace App\Events;
+
+class taskCreated  // Nombre en minúsculas, presente en lugar de pasado
+{
+    public $data;  // Sin tipo, nombre genérico
+
+    public function __construct($data)  // Sin type hint
+    {
+        $this->data = $data;
+    }
+}
+```
+
+```php
+<?php
+
+namespace App\Listeners;
+
+class DoStuff  // Nombre no descriptivo
+{
+    public function handle($event)  // Sin type hint del evento
+    {
+        // Múltiples responsabilidades
+        Mail::send(...);
+        DB::table('logs')->insert(...);
+        Cache::forget(...);
+        Http::post(...);
+    }
+}
+```
+
+## Manejo de Errores en Listeners
+
+```php
+class SendWelcomeEmail implements ShouldQueue
+{
+    public $tries = 3;  // Reintentos
+    public $backoff = [10, 60, 300];  // Segundos entre reintentos
+
+    public function handle(UserRegistered $event): void
+    {
+        // Lógica
+    }
+
+    public function failed(UserRegistered $event, \Throwable $exception): void
+    {
+        // Manejo de fallo final
+        Log::error('Failed to send welcome email', [
+            'user_id' => $event->user->id,
+            'error' => $exception->getMessage()
+        ]);
+    }
+}
+```

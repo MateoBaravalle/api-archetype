@@ -1,0 +1,387 @@
+---
+description: Reglas para la creación y modificación de Modelos Eloquent
+globs:
+  - "app/Models/**/*.php"
+  - "database/migrations/**/*.php"
+  - "database/factories/**/*.php"
+---
+
+# Modelos Eloquent
+
+## Tipos de Modelos
+
+### 1. Modelos de Dominio (extienden `App\Models\Model`)
+
+Para entidades del negocio que necesitan soft deletes y hooks.
+
+```php
+class Task extends Model { }
+class Product extends Model { }
+class Order extends Model { }
+```
+
+### 2. Modelo User (extiende `Authenticatable`)
+
+El modelo User **NO extiende** de `Model` base porque necesita funcionalidad de autenticación.
+
+```php
+class User extends Authenticatable
+{
+    use HasApiTokens, HasFactory, Notifiable;
+}
+```
+
+### 3. Modelos Pivot (extienden `Pivot`)
+
+Para tablas intermedias de relaciones many-to-many con datos adicionales.
+
+```php
+class OrderProduct extends Pivot
+{
+    protected $table = 'order_product';
+}
+```
+
+### 4. Modelos Sin Soft Delete (extienden `Eloquent\Model`)
+
+Para entidades que NO necesitan soft delete (logs, eventos, auditoría).
+
+```php
+use Illuminate\Database\Eloquent\Model as EloquentModel;
+
+class ActivityLog extends EloquentModel
+{
+    // Sin soft deletes - los logs no se eliminan
+}
+```
+
+## Cuándo Usar Cada Tipo
+
+| Tipo | Usar cuando |
+|------|-------------|
+| `extends Model` | Entidad de negocio con soft delete y hooks |
+| `extends Authenticatable` | Modelo de usuario con autenticación |
+| `extends Pivot` | Tabla intermedia many-to-many |
+| `extends Eloquent\Model` | Sin soft delete (logs, auditoría) |
+
+---
+
+## Modelos de Dominio (extends Model)
+
+### Estructura
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class NombreModelo extends Model
+{
+    use HasFactory;
+
+    protected $table = 'nombre_tabla';
+
+    protected $fillable = [
+        'campo1',
+        'campo2',
+    ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
+        // Otros casts específicos
+    ];
+}
+```
+
+### Hooks Disponibles
+
+El modelo base proporciona hooks que puedes sobrescribir:
+
+```php
+protected function beforeCreate() { }
+protected function afterCreate() { }
+protected function beforeUpdate() { }
+protected function afterUpdate() { }
+protected function beforeDelete() { }
+protected function afterDelete() { }
+```
+
+---
+
+## Modelo User
+
+### Estructura Específica
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+
+class User extends Authenticatable
+{
+    use HasApiTokens, HasFactory, Notifiable;
+
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+    ];
+}
+```
+
+---
+
+## Convenciones de Nomenclatura
+
+| Elemento | Convención | Ejemplo |
+|----------|------------|---------|
+| Clase del modelo | Singular, PascalCase | `Product`, `OrderItem` |
+| Tabla en BD | Plural, snake_case | `products`, `order_items` |
+| Columnas | snake_case | `created_at`, `user_id` |
+| Foreign keys | `{modelo}_id` | `user_id`, `category_id` |
+
+## Propiedades Requeridas
+
+### $fillable
+
+Definir explícitamente TODOS los campos asignables masivamente:
+
+```php
+protected $fillable = [
+    'title',
+    'description',
+    'status',
+    'priority',
+];
+```
+
+### $casts
+
+Incluir casts para tipos específicos:
+
+```php
+protected $casts = [
+    'created_at' => 'datetime',
+    'updated_at' => 'datetime',
+    'deleted_at' => 'datetime',  // Solo si usa soft deletes
+    'price' => 'decimal:2',
+    'is_active' => 'boolean',
+    'quantity' => 'integer',
+    'metadata' => 'array',
+];
+```
+
+## Relaciones
+
+Definir con return types explícitos:
+
+```php
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+public function user(): BelongsTo
+{
+    return $this->belongsTo(User::class);
+}
+
+public function items(): HasMany
+{
+    return $this->hasMany(OrderItem::class);
+}
+```
+
+---
+
+## Migraciones
+
+### Con Soft Deletes (mayoría de casos)
+
+```php
+Schema::create('products', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->decimal('price', 10, 2);
+    $table->timestamps();
+    $table->softDeletes();  // Para modelos que extienden Model base
+});
+```
+
+### Sin Soft Deletes (logs, auditoría)
+
+```php
+Schema::create('activity_logs', function (Blueprint $table) {
+    $table->id();
+    $table->string('action');
+    $table->text('description');
+    $table->timestamps();
+    // NO incluir softDeletes()
+});
+```
+
+### Foreign Keys
+
+```php
+$table->foreignId('user_id')->constrained()->onDelete('cascade');
+$table->foreignId('category_id')->nullable()->constrained()->nullOnDelete();
+```
+
+---
+
+## ✅ Ejemplos Correctos
+
+### Modelo de Dominio
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class Task extends Model
+{
+    use HasFactory;
+
+    protected $table = 'tasks';
+
+    protected $fillable = [
+        'title',
+        'description',
+        'status',
+        'due_date',
+        'priority',
+        'user_id',
+    ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
+        'due_date' => 'date',
+        'priority' => 'integer',
+    ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+}
+```
+
+### Modelo de Log (sin soft delete)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model as EloquentModel;
+
+class AuditLog extends EloquentModel
+{
+    protected $table = 'audit_logs';
+
+    protected $fillable = [
+        'user_id',
+        'action',
+        'model_type',
+        'model_id',
+        'changes',
+    ];
+
+    protected $casts = [
+        'changes' => 'array',
+    ];
+
+    // Los logs no se eliminan, sin soft deletes
+}
+```
+
+---
+
+## ❌ Errores Comunes
+
+```php
+// ❌ User extendiendo Model base (pierde autenticación)
+class User extends Model { }
+
+// ❌ Modelo de log con soft deletes (innecesario)
+class ActivityLog extends Model
+{
+    // Los logs no deberían tener soft delete
+}
+
+// ❌ Sin $fillable definido
+class Product extends Model
+{
+    // Vulnerable a mass assignment
+}
+
+// ❌ Relaciones sin return type
+public function user()  // Falta: : BelongsTo
+{
+    return $this->belongsTo(User::class);
+}
+```
+
+---
+
+## Factories
+
+```php
+<?php
+
+namespace Database\Factories;
+
+use App\Models\Product;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+class ProductFactory extends Factory
+{
+    protected $model = Product::class;
+
+    public function definition(): array
+    {
+        return [
+            'name' => fake()->words(3, true),
+            'description' => fake()->paragraph(),
+            'price' => fake()->randomFloat(2, 10, 1000),
+            'stock' => fake()->numberBetween(0, 100),
+        ];
+    }
+
+    // Estados opcionales
+    public function active(): static
+    {
+        return $this->state(fn (array $attrs) => ['status' => 'active']);
+    }
+}
+```

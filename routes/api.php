@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\TaskController;
-use App\Http\Controllers\UserController;
+use Src\Auth\Infrastructure\Http\Controllers\AuthController;
+use Src\Task\Infrastructure\Http\Controllers\TaskController;
+use Src\User\Infrastructure\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 

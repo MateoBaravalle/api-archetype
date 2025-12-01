@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Models\Task;
+use Src\Task\Infrastructure\Persistence\EloquentTaskModel;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,7 +17,7 @@ class TaskFactory extends Factory
      *
      * @var string
      */
-    protected $model = Task::class;
+    protected $model = EloquentTaskModel::class;
 
     /**
      * Define the model's default state.
@@ -29,7 +29,7 @@ class TaskFactory extends Factory
         return [
             'title' => $this->faker->sentence(),
             'description' => $this->faker->paragraph(),
-            'status' => $this->faker->randomElement(['pendiente', 'en_progreso', 'completada']),
+            'status' => $this->faker->randomElement(['pending', 'in_progress', 'completed']),
             'due_date' => $this->faker->dateTimeBetween('now', '+1 month'),
             'priority' => $this->faker->numberBetween(1, 5),
         ];

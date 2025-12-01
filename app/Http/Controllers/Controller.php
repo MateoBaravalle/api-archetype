@@ -8,7 +8,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
-use App\Traits\ApiResponseFormatter;
+use Src\Shared\Infrastructure\ApiResponseFormatter;
 
 /**
  * Clase base para todos los controladores de la API

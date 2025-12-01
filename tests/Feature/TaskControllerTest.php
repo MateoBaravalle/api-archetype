@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Models\Task;
+use Src\Task\Infrastructure\Persistence\EloquentTaskModel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -22,7 +22,7 @@ class TaskControllerTest extends TestCase
 
     public function test_can_list_tasks(): void
     {
-        Task::factory()->count(3)->create();
+        EloquentTaskModel::factory()->count(3)->create();
 
         $response = $this->withHeaders($this->auth['headers'])
             ->getJson('/api/v1/tasks');
@@ -63,7 +63,8 @@ class TaskControllerTest extends TestCase
         $taskData = [
             'title' => 'Nueva Tarea',
             'description' => 'Descripción de la tarea',
-            'status' => 'pendiente'
+            'status' => 'pending',
+            'priority' => 1
         ];
 
         $response = $this->withHeaders($this->auth['headers'])
@@ -93,16 +94,17 @@ class TaskControllerTest extends TestCase
         $response = $this->withHeaders($this->auth['headers'])
             ->postJson('/api/v1/tasks', [
                 'title' => '',
-                'status' => 'invalid_status'
+                'status' => 'invalid_status',
+                'priority' => 0  // Invalid priority
             ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['title', 'status']);
+            ->assertJsonValidationErrors(['title', 'status', 'priority']);
     }
 
     public function test_can_show_task(): void
     {
-        $task = Task::factory()->create();
+        $task = EloquentTaskModel::factory()->create();
 
         $response = $this->withHeaders($this->auth['headers'])
             ->getJson("/api/v1/tasks/{$task->id}");
@@ -132,16 +134,18 @@ class TaskControllerTest extends TestCase
         $response->assertStatus(404)
             ->assertJson([
                 'success' => false,
-                'message' => 'Recurso no encontrado'
+                'message' => 'Task with ID 999999 not found'
             ]);
     }
 
     public function test_can_update_task(): void
     {
-        $task = Task::factory()->create();
+        $task = EloquentTaskModel::factory()->create();
         $updateData = [
             'title' => 'Tarea Actualizada',
-            'status' => 'completada'
+            'description' => 'Descripción actualizada',
+            'status' => 'completed',
+            'priority' => 3
         ];
 
         $response = $this->withHeaders($this->auth['headers'])
@@ -168,7 +172,7 @@ class TaskControllerTest extends TestCase
 
     public function test_can_delete_task(): void
     {
-        $task = Task::factory()->create();
+        $task = EloquentTaskModel::factory()->create();
 
         $response = $this->withHeaders($this->auth['headers'])
             ->deleteJson("/api/v1/tasks/{$task->id}");
@@ -179,6 +183,6 @@ class TaskControllerTest extends TestCase
                 'message' => 'Tarea eliminada correctamente'
             ]);
 
-        $this->assertSoftDeleted('tasks', ['id' => $task->id]);
+        $this->assertDatabaseMissing('tasks', ['id' => $task->id]);
     }
 }

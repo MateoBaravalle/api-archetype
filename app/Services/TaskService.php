@@ -13,9 +13,9 @@ class TaskService extends Service
     /**
      * Constructor
      */
-    public function __construct()
+    public function __construct(Task $model)
     {
-        parent::__construct(new Task);
+        parent::__construct($model);
     }
 
     /**

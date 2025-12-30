@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Events\UserRegistered;
 use App\Models\User;
 use App\Services\AuthService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
-use PHPUnit\Framework\Attributes\Test;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class AuthServiceTest extends TestCase
@@ -20,62 +22,57 @@ class AuthServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->authService = new AuthService;
+        $this->authService = new AuthService();
     }
 
-    #[Test]
-    public function it_can_validate_user_credentials()
+    public function test_it_registers_new_user_if_email_does_not_exist(): void
     {
-        $user = User::factory()->create([
-            'email' => 'test@example.com',
-            'password' => Hash::make('password123'),
-        ]);
+        Event::fake();
 
-        $result = $this->authService->validateCredentials('test@example.com', 'password123');
-        $this->assertTrue($result);
-
-        $result = $this->authService->validateCredentials('test@example.com', 'wrongpassword');
-        $this->assertFalse($result);
-    }
-
-    #[Test]
-    public function it_can_create_user()
-    {
-        $userData = [
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $credentials = [
+            'email' => 'newuser@example.com',
             'password' => 'password123',
+            'name' => 'New User'
         ];
 
-        $user = $this->authService->createUser($userData);
+        $result = $this->authService->authenticateOrRegister($credentials);
 
-        $this->assertInstanceOf(User::class, $user);
-        $this->assertEquals('Test User', $user->name);
-        $this->assertEquals('test@example.com', $user->email);
-        $this->assertTrue(Hash::check('password123', $user->password));
+        $this->assertEquals(201, $result['status']);
+        $this->assertDatabaseHas('users', ['email' => 'newuser@example.com']);
+        Event::assertDispatched(UserRegistered::class);
     }
 
-    #[Test]
-    public function it_can_revoke_all_tokens()
+    public function test_it_authenticates_existing_user_with_correct_password(): void
     {
-        $user = User::factory()->create();
-        $user->createToken('test-token-1');
-        $user->createToken('test-token-2');
+        $user = User::factory()->create([
+            'email' => 'existing@example.com',
+            'password' => Hash::make('password123')
+        ]);
 
-        $this->authService->revokeAllTokens($user);
+        $credentials = [
+            'email' => 'existing@example.com',
+            'password' => 'password123'
+        ];
 
-        $this->assertCount(0, $user->tokens);
+        $result = $this->authService->authenticateOrRegister($credentials);
+
+        $this->assertEquals(200, $result['status']);
+        $this->assertEquals($user->id, $result['user']->id);
     }
 
-    #[Test]
-    public function it_can_create_api_token()
+    public function test_it_throws_validation_exception_for_existing_user_with_wrong_password(): void
     {
-        $user = User::factory()->create();
-        $token = $this->authService->createApiToken($user, 'test-token');
+        User::factory()->create([
+            'email' => 'existing@example.com',
+            'password' => Hash::make('password123')
+        ]);
 
-        $this->assertIsString($token);
-        $this->assertNotEmpty($token);
-        $this->assertStringContainsString('|', $token);
-        $this->assertCount(1, $user->tokens);
+        $credentials = [
+            'email' => 'existing@example.com',
+            'password' => 'wrongpassword'
+        ];
+
+        $this->expectException(ValidationException::class);
+        $this->authService->authenticateOrRegister($credentials);
     }
 }

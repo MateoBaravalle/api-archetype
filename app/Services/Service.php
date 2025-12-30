@@ -7,7 +7,10 @@ namespace App\Services;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+use App\Support\Query\FilterType;
 
 /**
  * Clase base abstracta para servicios
@@ -23,7 +26,7 @@ abstract class Service
      * @param  Model  $model  El modelo Eloquent asociado a este servicio
      */
     public function __construct(
-        protected Model $model
+        protected readonly Model $model
     ) {}
 
     // ==============================================
@@ -78,7 +81,7 @@ abstract class Service
      */
     protected function create(array $data): Model
     {
-        return $this->model->create($data);
+        return DB::transaction(fn() => $this->model->create($data));
     }
 
     /**
@@ -92,10 +95,12 @@ abstract class Service
      */
     protected function update(int $id, array $data): Model
     {
-        $model = $this->getById($id);
-        $model->update($data);
+        return DB::transaction(function () use ($id, $data) {
+            $model = $this->getById($id);
+            $model->update($data);
 
-        return $model->fresh();
+            return $model->fresh();
+        });
     }
 
     /**
@@ -106,7 +111,7 @@ abstract class Service
      */
     protected function delete(int $id): bool
     {
-        return (bool) $this->model->destroy($id);
+        return DB::transaction(fn() => (bool) $this->model->destroy($id));
     }
 
     // ==============================================
@@ -124,10 +129,6 @@ abstract class Service
     {
         if (! empty($params['filters'])) {
             $this->applyFilters($query, $params['filters']);
-        }
-
-        if (! empty($params['date_range'])) {
-            $this->applyDateRangeFilter($query, $params['date_range']);
         }
 
         $this->applySorting($query, $params['sort_by'], $params['sort_order']);
@@ -173,41 +174,38 @@ abstract class Service
      */
     protected function applyFilters(Builder $query, array $filters): Builder
     {
-        // Extraer y aplicar el filtro global si existe
-        if (! empty($filters['global'])) {
-            $this->applyGlobalSearch($query, $filters['global']);
-            unset($filters['global']);
-        }
+        foreach ($filters as $field => $data) {
+            $value = $data['value'];
+            $type = $data['type'];
 
-        foreach ($filters as $field => $value) {
-            // Ignorar valores vacíos o nulos
+            // Ignorar valores vacíos
             if ($value === '' || $value === null) {
                 continue;
             }
 
-            // Si 'global' se pasó como un nombre de campo, ignorarlo para evitar errores
-            if ($field === 'global') {
+            // Normalización de tipos básicos
+             if (is_string($value)) {
+                if ($value === 'true') $value = true;
+                if ($value === 'false') $value = false;
+            }
+
+            // Si hay un método específico en el servicio hijo, usarlo
+            $method = 'filterBy' . Str::studly($field);
+            if (method_exists($this, $method)) {
+                $this->$method($query, $value);
                 continue;
             }
 
-            $method = 'filterBy'.ucfirst($field);
-
-            if (method_exists($this, $method)) {
-                $this->$method($query, $value);
-            } else {
-                // Verificar que el campo existe en la tabla antes de usarlo
-                $columns = Schema::getColumnListing($this->model->getTable());
-                if (! in_array($field, $columns)) {
-                    continue; // Ignorar campos que no existen en la tabla
-                }
-
-                if (is_string($value)) {
-                    $value = strtolower($value);
-                    $query->where($field, 'like', "%{$value}%");
-                } elseif (is_bool($value)) {
-                    $query->where($field, $value);
-                }
-            }
+            // Aplicar filtro según el tipo definido (SIN ADIVINAR)
+            match ($type) {
+                FilterType::EXACT => $query->where($field, $value),
+                FilterType::PARTIAL => $query->where($field, 'like', '%' . $value . '%'),
+                FilterType::IN => $query->whereIn($field, (array) $value),
+                FilterType::GLOBAL_SEARCH => $this->applyGlobalSearch($query, $value),
+                FilterType::SIMPLE_SEARCH => $this->applySimpleSearch($query, $value),
+                FilterType::RANGE => $this->applyRangeFilter($query, $field, $value),
+                default => $query->where($field, $value),
+            };
         }
 
         return $query;
@@ -217,39 +215,41 @@ abstract class Service
      * Aplica un filtro de rango de fechas a la consulta
      *
      * @param  Builder  $query  La consulta a la que aplicar el filtro
-     * @param  array  $dateRange  Array con las claves 'start' y 'end'
-     * @param  string|null  $dateColumn  La columna de fecha a utilizar (si es null, usa getDateColumn)
-     */
-    protected function applyDateRangeFilter(Builder $query, array $dateRange, ?string $dateColumn = null): void
-    {
-        // Si no se especifica una columna, obtener la definida en getDateColumn
-        $column = $dateColumn ?? $this->getDateColumn();
-
-        if (! empty($dateRange['start']) && ! empty($dateRange['end'])) {
-            $query->where(function ($q) use ($column, $dateRange) {
-                // Incluir todos los registros donde la fecha sea mayor o igual a la fecha de inicio
-                $q->whereDate($column, '>=', $dateRange['start']);
-                // Y menor o igual a la fecha final
-                $q->whereDate($column, '<=', $dateRange['end']);
-            });
-        } elseif (! empty($dateRange['start'])) {
-            $query->whereDate($column, '>=', $dateRange['start']);
-        } elseif (! empty($dateRange['end'])) {
-            $query->whereDate($column, '<=', $dateRange['end']);
-        }
-    }
-
     /**
-     * Devuelve la columna de fecha a utilizar para filtrar por rango de fechas
+     * Aplica un filtro de rango a la consulta (dates or numbers)
      *
-     * Este método puede ser sobrescrito en las clases hijas para personalizar
-     * la columna de fecha utilizada en los filtros de rango.
-     *
-     * @return string Nombre de la columna de fecha
+     * @param  Builder  $query  La consulta
+     * @param  string   $field  Nombre de la columna
+     * @param  array    $range  Array con las claves 'start' y 'end' (o 'min'/'max')
      */
-    protected function getDateColumn(): string
+    protected function applyRangeFilter(Builder $query, string $field, array $range): void
     {
-        return 'created_at';
+        // Soporte para claves start/end (fechas) y min/max (números)
+        $start = $range['start'] ?? $range['min'] ?? null;
+        $end = $range['end'] ?? $range['max'] ?? null;
+
+        if ($start === null && $end === null) {
+            return;
+        }
+
+        $query->where(function ($q) use ($field, $start, $end) {
+            if ($start !== null) {
+                // Estrategia híbrida: Si el campo termina en _at o _date, usamos whereDate. Si no, where normal.
+                if (Str::endsWith($field, ['_at', '_date'])) {
+                     $q->whereDate($field, '>=', $start);
+                } else {
+                     $q->where($field, '>=', $start);
+                }
+            }
+
+            if ($end !== null) {
+                if (Str::endsWith($field, ['_at', '_date'])) {
+                     $q->whereDate($field, '<=', $end);
+                } else {
+                     $q->where($field, '<=', $end);
+                }
+            }
+        });
     }
 
     /**
@@ -286,7 +286,7 @@ abstract class Service
      */
     protected function getGlobalSearchColumns(): array
     {
-        return ['name', 'description'];
+        return [];
     }
 
     /**
@@ -317,5 +317,53 @@ abstract class Service
     protected function getGlobalSearchRelations(): array
     {
         return [];
+    }
+
+    /**
+     * Aplica una búsqueda simple a la consulta (solo devuelve ID y campo de nombre)
+     *
+     * @param  Builder  $query  La consulta a la que aplicar el filtro
+     * @param  string  $value  El valor a buscar
+     * @return Builder La consulta con el filtro aplicado
+     */
+    protected function applySimpleSearch(Builder $query, string $value): Builder
+    {
+        $value = strtolower($value);
+        $nameField = $this->getSimpleSearchNameField();
+        $selectFields = $this->getSimpleSearchSelectFields();
+
+        // Seleccionar los campos configurados
+        $query->select($selectFields);
+
+        // Aplicar filtro en el campo de nombre
+        $query->where($nameField, 'like', "%{$value}%");
+
+        return $query;
+    }
+
+    /**
+     * Devuelve el campo que representa el "nombre" para búsquedas simples
+     *
+     * Este método debe ser sobrescrito en las clases hijas para definir
+     * qué campo se considera como el "nombre" de la entidad.
+     *
+     * @return string Nombre del campo que representa el nombre de la entidad
+     */
+    protected function getSimpleSearchNameField(): string
+    {
+        return 'name';
+    }
+
+    /**
+     * Devuelve los campos que se deben seleccionar en búsquedas simples
+     *
+     * Este método puede ser sobrescrito en las clases hijas para definir
+     * qué campos se incluyen en la respuesta de búsqueda simple.
+     *
+     * @return array Lista de campos a seleccionar
+     */
+    protected function getSimpleSearchSelectFields(): array
+    {
+        return ['id', $this->getSimpleSearchNameField()];
     }
 }

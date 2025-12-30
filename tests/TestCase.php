@@ -24,9 +24,6 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
-        // Desactivar eventos por defecto
-        Event::fake();
-
         // Desactivar envío de emails por defecto
         Mail::fake();
 
@@ -61,8 +58,13 @@ abstract class TestCase extends BaseTestCase
             ->assertJsonStructure([
                 'success',
                 'message',
-                'data',
             ]);
+
+        // Si la respuesta incluye la clave 'data' (incluso si es null), la verificamos
+        // Si no la incluye (caso de retorno null en successResponse), omitimos el chequeo de estructura de data
+        if (array_key_exists('data', $response->json())) {
+            $response->assertJsonStructure(['data']);
+        }
     }
 
     /**

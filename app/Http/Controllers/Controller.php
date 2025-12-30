@@ -9,6 +9,7 @@ use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use App\Traits\ApiResponseFormatter;
+use App\Support\Query\FilterType;
 
 /**
  * Clase base para todos los controladores de la API
@@ -20,14 +21,26 @@ class Controller extends BaseController
     use ApiResponseFormatter;
 
     /**
-     * Define los filtros permitidos para consultas
+     * Define los filtros disponibles y su tipo de comportamiento.
      *
-     * Este método debe ser sobrescrito en los controladores hijos
-     * para definir qué campos pueden ser utilizados como filtros.
+     * Tipos soportados:
+     * - exact: Coincidencia exacta (field = value)
+     * - partial: Coincidencia parcial (LIKE %value%)
+     * - in: Lista de valores (WHERE IN)
+     * - range: Rango de valores (fechas o números)
+     * - simple_search: Búsqueda simple (autocomplete)
+     * - global_search: Búsqueda global multi-campo
      *
-     * @return array Lista de campos permitidos para filtrar
+     * Ejemplo:
+     * [
+     *   'status' => 'exact',
+     *   'name' => 'partial',
+     *   'search' => 'global_search',
+     * ]
+     *
+     * @return array<string, string>
      */
-    protected function getAllowedFilters(): array
+    protected function filters(): array
     {
         return [];
     }
@@ -67,11 +80,17 @@ class Controller extends BaseController
     protected function getFilterParams(Request $request): array
     {
         $filters = [];
-        $allowedFilters = $this->getAllowedFilters();
+        $filterDefinitions = $this->filters();
 
         foreach ($request->query() as $key => $value) {
-            if (in_array($key, $allowedFilters) && $value !== '') {
-                $filters[$key] = $value;
+            if (isset($filterDefinitions[$key]) && $value !== '') {
+                $type = $filterDefinitions[$key];
+                
+                // Estructura normalizada para el servicio: [ 'value' => X, 'type' => Y ]
+                $filters[$key] = [
+                    'value' => $value,
+                    'type' => $type
+                ];
             }
         }
 
@@ -107,10 +126,27 @@ class Controller extends BaseController
     }
 
     /**
+     * Extrae los parámetros de rango de fechas de la solicitud
+     *
+     * @param  Request  $request  Solicitud HTTP
+     * @return array Parámetros de rango de fechas (start y end)
+     */
+    protected function getDateRangeParams(Request $request): array
+    {
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+
+        return [
+            'start' => $startDate && $startDate !== '' ? $startDate : null,
+            'end' => $endDate && $endDate !== '' ? $endDate : null,
+        ];
+    }
+
+    /**
      * Combina todos los parámetros de consulta en un único array
      *
      * @param  Request  $request  Solicitud HTTP
-     * @return array Parámetros combinados de paginación, ordenamiento y filtros
+     * @return array Parámetros combinados de paginación, ordenamiento, filtros y rango de fechas
      */
     protected function getQueryParams(Request $request): array
     {
@@ -118,6 +154,7 @@ class Controller extends BaseController
             ...$this->getPaginationParams($request),
             ...$this->getSortingParams($request),
             'filters' => $this->getFilterParams($request),
+            'date_range' => $this->getDateRangeParams($request),
         ];
     }
 }

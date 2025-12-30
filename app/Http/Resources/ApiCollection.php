@@ -27,6 +27,12 @@ class ApiCollection extends ResourceCollection
                     'has_more_pages' => $this->resource->hasMorePages(),
                 ],
             ],
+            'links' => [
+                'first' => $this->resource->url(1),
+                'last' => $this->resource->url($this->resource->lastPage()),
+                'prev' => $this->resource->previousPageUrl(),
+                'next' => $this->resource->nextPageUrl(),
+            ],
         ];
     }
 }

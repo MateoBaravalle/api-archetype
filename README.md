@@ -3,7 +3,7 @@
 Un arquetipo robusto y escalable para construir APIs RESTful en Laravel. Proporciona una estructura sólida con patrones de diseño, autenticación, validación y manejo de errores listos para usar.
 
 ![PHP](https://img.shields.io/badge/PHP-8.2+-777BB4?style=flat&logo=php&logoColor=white)
-![Laravel](https://img.shields.io/badge/Laravel-11.x-FF2D20?style=flat&logo=laravel&logoColor=white)
+![Laravel](https://img.shields.io/badge/Laravel-12.x-FF2D20?style=flat&logo=laravel&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 ---
@@ -37,17 +37,16 @@ Un arquetipo robusto y escalable para construir APIs RESTful en Laravel. Proporc
 
 | Característica           | Descripción                                          |
 | ------------------------ | ---------------------------------------------------- |
-| 🔐 **Autenticación**     | Laravel Sanctum con login/registro unificado         |
-| 📦 **CRUD Genérico**     | Operaciones CRUD completas en clases base            |
-| 🔍 **Filtrado Avanzado** | Filtros por campo, búsqueda global y rangos de fecha |
-| 📊 **Paginación**        | Paginación integrada con metadatos                   |
-| ⚡ **Ordenamiento**      | Ordenamiento flexible por cualquier campo            |
-| ✅ **Validación**        | Validación centralizada con sanitización automática  |
-| 🛡️ **Manejo de Errores** | Respuestas de error estandarizadas                   |
-| 🗑️ **Soft Deletes**      | Eliminación suave integrada                          |
-| 📝 **Hooks de Modelo**   | Callbacks before/after para operaciones              |
-| 🎯 **Eventos**           | Sistema de eventos y listeners                       |
-| 🧪 **Testing**           | Estructura de tests lista para usar                  |
+| 🔐 **Autenticación**     | Sistema unificado (Login/Registro) en Service Layer  |
+| 📦 **CRUD Genérico**     | Operaciones atómicas con transacciones DB            |
+| 📋 **Auditoría**         | Trait Auditable (created_by, updated_by, deleted_by) |
+| 🛡️ **Autorización**      | Policies integradas para control de acceso           |
+| 🔍 **Filtrado Avanzado** | Filtros type-safe usando Enums (FilterType)          |
+| ⚡ **Modernidad PHP**    | Uso de `readonly`, `match` y tipado estricto 8.2+    |
+| ✅ **Validación**        | Sanitización automática y validación de headers      |
+| 🛡️ **Manejo de Errores** | Excepciones globales formateadas a JSON              |
+| 🧪 **Testing**           | Tests de Feature y Unit con >80% de cobertura        |
+| 🗑️ **Soft Deletes**      | Eliminación suave integrada por defecto              |
 
 ---
 
@@ -115,9 +114,9 @@ app/
 ├── Http/
 │   ├── Controllers/
 │   │   ├── Controller.php          # Controlador base
-│   │   ├── AuthController.php      # Autenticación
+│   │   ├── AuthController.php      # Autenticación (thin controller)
 │   │   ├── UserController.php      # Gestión de usuario
-│   │   └── TaskController.php      # Ejemplo CRUD
+│   │   └── TaskController.php      # Ejemplo CRUD con Policy
 │   ├── Requests/
 │   │   ├── ApiRequest.php          # Request base con sanitización
 │   │   ├── AuthRequest.php         # Validación de auth
@@ -136,13 +135,16 @@ app/
 │   ├── Service.php                 # Servicio base CRUD
 │   ├── AuthService.php             # Lógica de autenticación
 │   └── TaskService.php             # Ejemplo de servicio
+├── Policies/
+│   └── TaskPolicy.php              # Ejemplo de autorización
 ├── Events/
 │   └── UserRegistered.php          # Evento de registro
 ├── Listeners/
 │   ├── CreateInitialUserSettings.php
 │   └── SendWelcomeEmail.php
 └── Traits/
-    └── ApiResponseFormatter.php    # Formateo de respuestas
+    ├── Auditable.php               # Tracking de usuarios (created_by...)
+    └── ApiResponseFormatter.php    # Contrato estricto de respuesta
 
 routes/
 └── api.php                         # Rutas de la API
@@ -195,7 +197,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Product extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     protected $table = 'products';
 
@@ -399,26 +401,19 @@ class ProductController extends Controller
 {
     protected ProductService $productService;
 
-    public function __construct(ProductService $productService)
-    {
-        $this->productService = $productService;
-    }
+    public function __construct(
+        protected readonly ProductService $productService
+    ) {}
 
     /**
      * Listar productos
      */
     public function index(Request $request): JsonResponse
     {
-        try {
-            $params = $this->getQueryParams($request);
-            $products = $this->productService->getProducts($params);
+        $params = $this->getQueryParams($request);
+        $products = $this->productService->getProducts($params);
 
-            return $this->successResponse(
-                $this->transformCollection($products)
-            );
-        } catch (\Exception $e) {
-            return $this->handleError($e);
-        }
+        return $this->successResponse($products);
     }
 
     /**
@@ -426,17 +421,9 @@ class ProductController extends Controller
      */
     public function store(ProductRequest $request): JsonResponse
     {
-        try {
-            $product = $this->productService->createProduct($request->validated());
+        $product = $this->productService->createProduct($request->validated());
 
-            return $this->successResponse(
-                $this->transformResource($product),
-                'Producto creado correctamente',
-                201
-            );
-        } catch (\Exception $e) {
-            return $this->handleError($e);
-        }
+        return $this->successResponse($product, 'Producto creado correctamente', 201);
     }
 
     /**
@@ -444,15 +431,9 @@ class ProductController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        try {
-            $product = $this->productService->getProduct($id);
+        $product = $this->productService->getProduct($id);
 
-            return $this->successResponse(
-                $this->transformResource($product)
-            );
-        } catch (\Exception $e) {
-            return $this->handleError($e);
-        }
+        return $this->successResponse($product);
     }
 
     /**
@@ -460,16 +441,9 @@ class ProductController extends Controller
      */
     public function update(ProductRequest $request, int $id): JsonResponse
     {
-        try {
-            $product = $this->productService->updateProduct($id, $request->validated());
+        $product = $this->productService->updateProduct($id, $request->validated());
 
-            return $this->successResponse(
-                $this->transformResource($product),
-                'Producto actualizado correctamente'
-            );
-        } catch (\Exception $e) {
-            return $this->handleError($e);
-        }
+        return $this->successResponse($product, 'Producto actualizado correctamente');
     }
 
     /**
@@ -477,16 +451,9 @@ class ProductController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
-        try {
-            $this->productService->deleteProduct($id);
+        $this->productService->deleteProduct($id);
 
-            return $this->successResponse(
-                null,
-                'Producto eliminado correctamente'
-            );
-        } catch (\Exception $e) {
-            return $this->handleError($e);
-        }
+        return $this->successResponse(null, 'Producto eliminado correctamente');
     }
 
     // ==========================================
@@ -785,30 +752,46 @@ protected function getQueryParams(Request $request): array
 }
 ```
 
-### Respuesta con paginación
+### Respuesta con paginación (Estructura Unificada)
 
 ```json
 {
     "success": true,
     "message": "Operación exitosa",
-    "data": {
-        "data": [
-            { "id": 1, "name": "Producto 1" },
-            { "id": 2, "name": "Producto 2" }
-        ],
-        "meta": {
-            "pagination": {
-                "total": 50,
-                "count": 10,
-                "per_page": 10,
-                "current_page": 1,
-                "total_pages": 5,
-                "has_more_pages": true
-            }
+    "data": [
+        { "id": 1, "name": "Producto 1" },
+        { "id": 2, "name": "Producto 2" }
+    ],
+    "meta": {
+        "pagination": {
+            "total": 50,
+            "count": 10,
+            "per_page": 10,
+            "current_page": 1,
+            "total_pages": 5,
+            "has_more_pages": true
         }
+    },
+    "links": {
+        "first": ".../api/v1/products?page=1",
+        "last": ".../api/v1/products?page=5",
+        "prev": null,
+        "next": ".../api/v1/products?page=2"
     }
 }
 ```
+
+### Contrato de `successResponse()`
+
+El método `successResponse()` en los controladores aplica un contrato estricto entre la lógica de dominio y la presentación. Acepta únicamente:
+
+-   **LengthAwarePaginator**: Se transforma automáticamente usando `transformCollection()`.
+-   **Model**: Se transforma automáticamente usando `transformResource()`.
+-   **array**: Para payloads explícitos (ej. tokens). No usar para modelos o colecciones.
+-   **bool**: Para respuestas simples de estado.
+-   **null**: Para acciones sin retorno (ej. delete). No incluye la clave `data` en el JSON.
+
+Cualquier otro tipo (incluyendo pasar directamente un `JsonResource` o `Collection`) lanzará una excepción de arquitectura.
 
 ### Respuesta de error
 

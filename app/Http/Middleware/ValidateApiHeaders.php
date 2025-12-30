@@ -39,8 +39,7 @@ class ValidateApiHeaders
      */
     protected function validateAcceptHeader(Request $request): bool
     {
-        return $request->hasHeader('Accept') &&
-               $request->header('Accept') === 'application/json';
+        return $request->expectsJson();
     }
 
     /**

@@ -8,39 +8,26 @@ use App\Http\Requests\TaskRequest;
 use App\Services\TaskService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Support\Query\FilterType;
 
 class TaskController extends Controller
 {
     /**
-     * Servicio de tareas
-     *
-     * @var TaskService
-     */
-    protected $taskService;
-
-    /**
      * Constructor
      */
-    public function __construct(TaskService $taskService)
-    {
-        $this->taskService = $taskService;
-    }
+    public function __construct(
+        protected readonly TaskService $taskService
+    ) {}
 
     /**
      * Mostrar un listado de tareas.
      */
     public function index(Request $request): JsonResponse
     {
-        try {
-            $params = $this->getQueryParams($request);
-            $tasks = $this->taskService->getTasks($params);
+        $params = $this->getQueryParams($request);
+        $tasks = $this->taskService->getTasks($params);
 
-            return $this->successResponse(
-                $this->transformCollection($tasks)
-            );
-        } catch (\Exception $e) {
-            return $this->handleError($e);
-        }
+        return $this->successResponse($tasks);
     }
 
     /**
@@ -48,17 +35,9 @@ class TaskController extends Controller
      */
     public function store(TaskRequest $request): JsonResponse
     {
-        try {
-            $task = $this->taskService->createTask($request->validated());
+        $task = $this->taskService->createTask($request->validated());
 
-            return $this->successResponse(
-                $this->transformResource($task),
-                'Tarea creada correctamente',
-                201
-            );
-        } catch (\Exception $e) {
-            return $this->handleError($e);
-        }
+        return $this->successResponse($task, 'Tarea creada correctamente', 201);
     }
 
     /**
@@ -66,15 +45,11 @@ class TaskController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        try {
-            $task = $this->taskService->getTask($id);
+        $task = $this->taskService->getTask($id);
+        
+        $this->authorize('view', $task);
 
-            return $this->successResponse(
-                $this->transformResource($task)
-            );
-        } catch (\Exception $e) {
-            return $this->handleError($e);
-        }
+        return $this->successResponse($task);
     }
 
     /**
@@ -82,16 +57,13 @@ class TaskController extends Controller
      */
     public function update(TaskRequest $request, int $id): JsonResponse
     {
-        try {
-            $task = $this->taskService->updateTask($id, $request->validated());
+        $task = $this->taskService->getTask($id); // Obtenemos el modelo primero para la policy
+        
+        $this->authorize('update', $task);
 
-            return $this->successResponse(
-                $this->transformResource($task),
-                'Tarea actualizada correctamente'
-            );
-        } catch (\Exception $e) {
-            return $this->handleError($e);
-        }
+        $task = $this->taskService->updateTask($id, $request->validated());
+
+        return $this->successResponse($task, 'Tarea actualizada correctamente');
     }
 
     /**
@@ -99,24 +71,28 @@ class TaskController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
-        try {
-            $this->taskService->deleteTask($id);
+        $task = $this->taskService->getTask($id); // Obtenemos el modelo primero
+        
+        $this->authorize('delete', $task);
+        
+        $this->taskService->deleteTask($id);
 
-            return $this->successResponse(
-                null,
-                'Tarea eliminada correctamente'
-            );
-        } catch (\Exception $e) {
-            return $this->handleError($e);
-        }
+        return $this->successResponse(
+            null,
+            'Tarea eliminada correctamente'
+        );
     }
 
     /**
      * Definir los filtros permitidos
      */
-    protected function getAllowedFilters(): array
+    protected function filters(): array
     {
-        return ['global', 'status', 'priority'];
+        return [
+            'global' => FilterType::GLOBAL_SEARCH,
+            'status' => FilterType::EXACT,
+            'priority' => FilterType::EXACT,
+        ];
     }
 
     /**

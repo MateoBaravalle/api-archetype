@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use App\Http\Resources\ApiCollection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Auth\AuthenticationException;
@@ -19,6 +20,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Session\TokenMismatchException;
+use JsonSerializable;
 
 /**
  * Trait ApiResponseFormatter
@@ -29,116 +31,126 @@ use Illuminate\Session\TokenMismatchException;
 trait ApiResponseFormatter
 {
     /**
+     * Formatea una respuesta de error
+     */
+    protected function errorResponse(string $message, int $status = 500, array $errors = []): JsonResponse
+    {
+        $response = [
+            'success' => false,
+            'message' => $message,
+        ];
+
+        if (!empty($errors)) {
+            $response['errors'] = $errors;
+        }
+
+        return $this->jsonResponseWithPreserveDecimal($response, $status);
+    }
+    /**
      * Formatea una respuesta exitosa
      */
     protected function successResponse($data, string $message = 'Operación exitosa', int $status = 200): JsonResponse
     {
-        if ($data instanceof ResourceCollection || $data instanceof JsonResource) {
-            return response()->json([
-                'success' => true,
-                'message' => $message,
-                'data' => $data->toArray(request()),
-            ], $status);
+        // 1. Si es un Paginator, aplicamos transformación de colección
+        if ($data instanceof LengthAwarePaginator) {
+            $data = $this->transformCollection($data);
+        }
+        // 2. Si es un Model, aplicamos transformación de recurso
+        elseif ($data instanceof Model) {
+            $data = $this->transformResource($data);
+        }
+        // 3. Tipos básicos permitidos (null, bool, array), el resto lanza excepción (fail fast)
+        elseif ($data !== null && !is_array($data) && !is_bool($data)) {
+            $type = is_object($data) ? get_class($data) : gettype($data);
+            throw new \InvalidArgumentException("Error de arquitectura: successResponse no acepta {$type}. Use Model, Paginator, array, bool o null.");
         }
 
-        return response()->json([
+        $response = [
             'success' => true,
             'message' => $message,
-            'data' => $data,
-        ], $status);
-    }
+        ];
 
-    /**
-     * Formatea una respuesta de error
-     */
-    protected function errorResponse(string $message, int $status = 400, array $errors = []): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'message' => $message,
-            'errors' => $errors,
-        ], $status);
-    }
-
-    /**
-     * Maneja errores y las convierte en respuestas JSON apropiadas
-     */
-    protected function handleError(\Exception $e, int $defaultCode = 400): JsonResponse
-    {
-        Log::error('Error en la aplicación: ' . $e->getMessage(), [
-            'exception' => get_class($e),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'trace' => $e->getTraceAsString(),
-        ]);
-
-        $errorData = match (true) {
-            $e instanceof ModelNotFoundException => [
-                'message' => 'Recurso no encontrado',
-                'code' => 404,
-            ],
-            $e instanceof AuthenticationException => [
-                'message' => 'Autenticación fallida',
-                'code' => 401,
-            ],
-            $e instanceof AuthorizationException => [
-                'message' => 'Autorización fallida',
-                'code' => 403,
-            ],
-            $e instanceof QueryException => [
-                'message' => 'Error en base de datos',
-                'code' => 500,
-            ],
-            $e instanceof \InvalidArgumentException => [
-                'message' => 'Parámetro inválido',
-                'code' => 400,
-            ],
-            $e instanceof ValidationException => [
-                'message' => 'Error de validación',
-                'code' => 422,
-            ],
-            $e instanceof NotFoundHttpException => [
-                'message' => 'Ruta no encontrada',
-                'code' => 404,
-            ],
-            $e instanceof MethodNotAllowedHttpException => [
-                'message' => 'Método no permitido',
-                'code' => 405,
-            ],
-            $e instanceof ThrottleRequestsException => [
-                'message' => 'Demasiadas solicitudes',
-                'code' => 429,
-            ],
-            $e instanceof TokenMismatchException => [
-                'message' => 'Token CSRF no válido',
-                'code' => 419,
-            ],
-            default => [
-                'message' => 'Operación fallida',
-                'code' => $defaultCode,
-            ]
-        };
-
-        $errors = [];
-
-        if ($e->getMessage()) {
-            $errors['exception'] = $e->getMessage();
+        // 4. Formatear el resultado final
+        if ($data instanceof ResourceCollection) {
+            $responseData = $data->toArray(request());
+            $response = array_merge($response, $responseData);
+        } elseif ($data instanceof JsonResource) {
+            $response['data'] = $data->toArray(request());
+        } elseif ($data !== null) {
+            $response['data'] = $data;
         }
 
-        return $this->errorResponse($errorData['message'], $errorData['code'], $errors);
+        return $this->jsonResponseWithPreserveDecimal($response, $status);
+    }
+
+    /**
+     * Mapea una excepción a un formato de respuesta estándar
+     * Centralizamos aquí para que bootstrap/app.php y handleError usen lo mismo.
+     */
+    public static function parseExceptionPayload(\Throwable $e, int $defaultCode = 500): array
+    {
+        $status = $defaultCode;
+        $message = 'Ha ocurrido un error inesperado';
+        $errors = [];
+
+        if ($e instanceof ValidationException) {
+            $status = 422;
+            $message = 'Error de validación';
+            $errors = $e->errors();
+        } elseif ($e instanceof ModelNotFoundException || $e instanceof NotFoundHttpException) {
+            $status = 404;
+            $message = 'Recurso no encontrado';
+        } elseif ($e instanceof AuthenticationException) {
+            $status = 401;
+            $message = 'No autenticado';
+        } elseif ($e instanceof AuthorizationException || $e instanceof \Illuminate\Auth\Access\AuthorizationException || $e instanceof \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException) {
+            $status = 403;
+            $message = 'No tienes permisos para realizar esta acción';
+        } elseif ($e instanceof MethodNotAllowedHttpException) {
+            $status = 405;
+            $message = 'Método no permitido';
+        } elseif ($e instanceof ThrottleRequestsException) {
+            $status = 429;
+            $message = 'Demasiadas solicitudes';
+        } elseif ($e instanceof QueryException) {
+            $status = 500;
+            $message = 'Error en base de datos';
+            if (config('app.debug')) {
+                $errors['sql'] = $e->getMessage();
+            }
+        } elseif (config('app.debug')) {
+            $status = $e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface ? $e->getStatusCode() : $status;
+            $message = $e->getMessage() ?: $message;
+            $errors = [
+                'exception' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ];
+        }
+
+        return [
+            'status' => $status,
+            'message' => $message,
+            'errors' => $errors,
+        ];
     }
 
     /**
      * Transforma una colección de recursos
      */
-    protected function transformCollection(LengthAwarePaginator $collection): ResourceCollection
+    protected function transformCollection(LengthAwarePaginator $collection, ?string $resourceClass = null): ResourceCollection
     {
         $model = $collection->first();
-        if (!$model) {
-            return new ResourceCollection($collection);
+        $collectionClass = $model ? $this->getCollectionClass($model) : ApiCollection::class;
+
+        if ($collectionClass === ApiCollection::class || $collectionClass === ResourceCollection::class) {
+            // Si usamos la clase base, nos aseguramos de que use el Resource correcto para los ítems
+            $resourceCollection = $resourceClass ? $resourceClass::collection($collection) : new ApiCollection($collection);
+
+            // Si es la anónima de Laravel, la envolvemos en nuestra ApiCollection para tener el formato meta/links
+            return ($resourceCollection instanceof ApiCollection) ? $resourceCollection : new ApiCollection($collection);
         }
 
-        $collectionClass = $this->getCollectionClass($model);
         return new $collectionClass($collection);
     }
 
@@ -179,9 +191,23 @@ trait ApiResponseFormatter
         $collectionClass = "App\\Http\\Resources\\{$modelName}Collection";
 
         if (!class_exists($collectionClass)) {
-            return ResourceCollection::class;
+            return ApiCollection::class;
         }
 
         return $collectionClass;
+    }
+
+    /**
+     * Crea una respuesta JSON con JSON_PRESERVE_ZERO_FRACTION
+     * para que los floats se serialicen correctamente (300.0 en lugar de 300)
+     */
+    protected function jsonResponseWithPreserveDecimal(array $data, int $status = 200): JsonResponse
+    {
+        return response()->json(
+            $data,
+            $status,
+            [],
+            JSON_PRESERVE_ZERO_FRACTION
+        );
     }
 }

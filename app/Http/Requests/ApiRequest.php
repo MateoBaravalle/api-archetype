@@ -8,8 +8,12 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
+use App\Traits\ApiResponseFormatter;
+
 abstract class ApiRequest extends FormRequest
 {
+    use ApiResponseFormatter;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -42,16 +46,13 @@ abstract class ApiRequest extends FormRequest
 
         foreach ($input as $key => $value) {
             if (is_string($value)) {
-                // Elimina espacios en blanco al inicio y final
+                // 1. Elimina espacios en blanco al inicio y final
                 $value = trim($value);
 
-                // Convierte caracteres especiales a entidades HTML
-                $value = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-
-                // Elimina caracteres de control
+                // 2. Elimina caracteres de control (evita errores en logs y exportaciones)
                 $value = preg_replace('/[\x00-\x1F\x7F]/u', '', $value);
 
-                // Normaliza espacios múltiples a uno solo
+                // 3. Normaliza espacios múltiples a uno solo para limpieza visual
                 $value = preg_replace('/\s+/', ' ', $value);
 
                 $input[$key] = $value;
@@ -67,11 +68,7 @@ abstract class ApiRequest extends FormRequest
     protected function failedValidation(Validator $validator): void
     {
         throw new HttpResponseException(
-            response()->json([
-                'success' => false,
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422)
+            $this->errorResponse('Error de validación', 422, $validator->errors()->toArray())
         );
     }
 }

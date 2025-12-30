@@ -39,7 +39,7 @@ class ApiRequestTest extends TestCase
         $request->prepareForValidation();
 
         $this->assertEquals('Juan Pérez', $request->input('name'));
-        $this->assertEquals('juan@example.com&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;', $request->input('email'));
+        $this->assertEquals('juan@example.com<script>alert("xss")</script>', $request->input('email'));
         $this->assertEquals('Línea 1 Línea 2 Línea 3', $request->input('description'));
     }
 

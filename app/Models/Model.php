@@ -42,45 +42,6 @@ abstract class Model extends BaseModel
     ];
 
     /**
-     * Los atributos que deben ser convertidos a fechas.
-     *
-     * @var array
-     */
-    protected $dates = [
-        'created_at',
-        'updated_at',
-        'deleted_at',
-    ];
-
-    /**
-     * Los atributos que deben ser convertidos a booleanos.
-     *
-     * @var array
-     */
-    protected $booleans = [];
-
-    /**
-     * Los atributos que deben ser convertidos a enteros.
-     *
-     * @var array
-     */
-    protected $integers = [];
-
-    /**
-     * Los atributos que deben ser convertidos a flotantes.
-     *
-     * @var array
-     */
-    protected $floats = [];
-
-    /**
-     * Los atributos que deben ser convertidos a strings.
-     *
-     * @var array
-     */
-    protected $strings = [];
-
-    /**
      * Boot el modelo.
      *
      * @return void

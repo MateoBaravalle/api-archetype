@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('status')->default('pendiente');
             $table->date('due_date')->nullable();
             $table->integer('priority')->default(3);
+            $table->auditable();
             $table->timestamps();
             $table->softDeletes();
         });

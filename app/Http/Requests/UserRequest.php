@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class UserRequest extends ApiRequest
 {
@@ -18,7 +19,11 @@ class UserRequest extends ApiRequest
         // Reglas comunes para todas las peticiones
         $rules = [
             'name' => 'string|min:3|max:255|regex:/^[\p{L}\s]+$/u',
-            'email' => 'email|max:255|unique:users,email,' . Auth::id(),
+            'email' => [
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore(Auth::id()),
+            ],
         ];
 
         // Si es una actualización de contraseña

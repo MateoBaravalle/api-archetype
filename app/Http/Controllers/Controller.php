@@ -126,20 +126,49 @@ class Controller extends BaseController
     }
 
     /**
-     * Extrae los parámetros de rango de fechas de la solicitud
+     * Extrae los parámetros de rango de la solicitud.
+     *
+     * Busca parámetros en la URL probando 4 patrones de nomenclatura diferentes.
+     *
+     * Patrones soportados (usando 'price' como prefijo de ejemplo):
+     * 1. Sufijos de fecha:   price_start / price_end  (Prioridad Alta)
+     * 2. Prefijos de fecha:  start_price / end_price  (Prioridad Alta)
+     * 3. Sufijos numéricos:  price_min   / price_max  (Prioridad Baja)
+     * 4. Prefijos numéricos: min_price   / max_price  (Prioridad Baja)
+     *
+     * Nota: El sistema devuelve el primer par que encuentre con datos,
+     * priorizando los estilos de 'fecha' (start/end) sobre los 'numéricos' (min/max).
      *
      * @param  Request  $request  Solicitud HTTP
-     * @return array Parámetros de rango de fechas (start y end)
+     * @param  string   $prefix   Prefijo del parámetro definido en supportedRanges (ej: 'date', 'price')
+     * @return array  Array normalizado: ['start'=>..., 'end'=>...] o ['min'=>..., 'max'=>...].
      */
-    protected function getDateRangeParams(Request $request): array
+    protected function getRangeParams(Request $request, string $prefix = 'date'): array
     {
-        $startDate = $request->query('start_date');
-        $endDate = $request->query('end_date');
+        // Intentar primero con start/end (fechas)
+        $start = $request->query("{$prefix}_start") ?? $request->query("start_{$prefix}");
+        $end = $request->query("{$prefix}_end") ?? $request->query("end_{$prefix}");
 
-        return [
-            'start' => $startDate && $startDate !== '' ? $startDate : null,
-            'end' => $endDate && $endDate !== '' ? $endDate : null,
-        ];
+        // Si no hay start/end, intentar con min/max (números)
+        $min = $request->query("{$prefix}_min") ?? $request->query("min_{$prefix}");
+        $max = $request->query("{$prefix}_max") ?? $request->query("max_{$prefix}");
+
+        // Retornar el formato que tenga datos
+        if ($start !== null || $end !== null) {
+            return [
+                'start' => $start && $start !== '' ? $start : null,
+                'end' => $end && $end !== '' ? $end : null,
+            ];
+        }
+
+        if ($min !== null || $max !== null) {
+            return [
+                'min' => $min !== '' ? $min : null,
+                'max' => $max !== '' ? $max : null,
+            ];
+        }
+
+        return [];
     }
 
     /**
@@ -153,8 +182,61 @@ class Controller extends BaseController
         return [
             ...$this->getPaginationParams($request),
             ...$this->getSortingParams($request),
-            'filters' => $this->getFilterParams($request),
-            'date_range' => $this->getDateRangeParams($request),
+            'filters' => array_merge(
+                $this->getFilterParams($request),
+                $this->getRangeFilters($request)
+            ),
+        ];
+    }
+
+    /**
+     * Procesa los rangos configurados en supportedRanges y los convierte a filtros.
+     *
+     * Itera sobre cada configuración de rango soportado, extrae los valores
+     * del request y los formatea para ser consumidos por el servicio.
+     *
+     * @param  Request  $request  Solicitud HTTP
+     * @return array  Array de filtros compatible con Service::applyFilters
+     *                Ej: ['amount' => ['type' => 'range', 'value' => [...]]]
+     */
+    protected function getRangeFilters(Request $request): array
+    {
+        $filters = [];
+
+        foreach ($this->supportedRanges() as $prefix => $field) {
+            $range = $this->getRangeParams($request, $prefix);
+
+            if (! empty($range)) {
+                $filters[$field] = [
+                    'type' => FilterType::RANGE,
+                    'value' => $range,
+                ];
+            }
+        }
+
+        return $filters;
+    }
+
+    /**
+     * Define los rangos soportados y su mapeo a campos de base de datos.
+     *
+     * Este método debe ser sobrescrito por los controladores hijos para habilitar
+     * la funcionalidad de rangos (fechas, precios, edades, etc).
+     *
+     * Formato: ['prefijo_url' => 'columna_bd']
+     *
+     * Ejemplo:
+     * return [
+     *     'created_at' => 'created_at', // ?created_at_start=...
+     *     'price'      => 'final_amount' // ?price_min=...
+     * ];
+     *
+     * @return array<string, string> Mapa de prefijos a columnas
+     */
+    protected function supportedRanges(): array
+    {
+        return [
+            'date' => 'created_at',
         ];
     }
 }

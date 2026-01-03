@@ -216,11 +216,21 @@ abstract class Service
      *
      * @param  Builder  $query  La consulta a la que aplicar el filtro
     /**
-     * Aplica un filtro de rango a la consulta (dates or numbers)
+     * Aplica un filtro de rango a la consulta.
      *
-     * @param  Builder  $query  La consulta
-     * @param  string   $field  Nombre de la columna
-     * @param  array    $range  Array con las claves 'start' y 'end' (o 'min'/'max')
+     * Lógica de aplicación:
+     * 1. Normalización: Unifica 'start'/'min' como límite inferior y 'end'/'max' como superior.
+     * 2. Detección de Tipo de Columna (Smart Check):
+     *    - Si $field termina en '_at' o '_date' (ej: created_at, birth_date):
+     *      Se usa `whereDate()` comparando SOLO la fecha (YYYY-MM-DD), ignorando la hora.
+     *    - Para cualquier otro nombre de columna (ej: amount, age):
+     *      Se usa `where()` estándar para comparación exacta (numérica o string).
+     * 3. Rangos Abiertos:
+     *    - Maneja casos donde solo existe un límite (ej: precios > 100).
+     *
+     * @param  Builder  $query  La consulta Eloquent
+     * @param  string   $field  Nombre de la columna en la base de datos
+     * @param  array    $range  Array de valores (ej: ['start' => '2024-01-01', 'end' => null])
      */
     protected function applyRangeFilter(Builder $query, string $field, array $range): void
     {

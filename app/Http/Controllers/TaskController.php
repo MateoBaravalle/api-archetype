@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\TaskRequest;
+use App\Http\Requests\SearchRequest;
 use App\Services\TaskService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use App\Support\Query\FilterType;
 
 class TaskController extends Controller
@@ -22,7 +21,7 @@ class TaskController extends Controller
     /**
      * Mostrar un listado de tareas.
      */
-    public function index(Request $request): JsonResponse
+    public function index(SearchRequest $request): JsonResponse
     {
         $params = $this->getQueryParams($request);
         $tasks = $this->taskService->getTasks($params);

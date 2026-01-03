@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\SearchRequest;
+use App\Http\Requests\TaskRequest;
 use App\Services\TaskService;
 use Illuminate\Http\JsonResponse;
 use App\Support\Query\FilterType;

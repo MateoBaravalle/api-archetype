@@ -1,6 +1,6 @@
 # 🚀 Laravel API Archetype
 
-Un arquetipo robusto y escalable para construir APIs RESTful en Laravel. Proporciona una estructura sólida con patrones de diseño, autenticación, validación y manejo de errores listos para usar.
+A robust and scalable archetype for building RESTful APIs in Laravel. It provides a solid structure with ready-to-use design patterns, authentication, validation, and error handling.
 
 ![PHP](https://img.shields.io/badge/PHP-8.2+-777BB4?style=flat&logo=php&logoColor=white)
 ![Laravel](https://img.shields.io/badge/Laravel-12.x-FF2D20?style=flat&logo=laravel&logoColor=white)
@@ -8,183 +8,183 @@ Un arquetipo robusto y escalable para construir APIs RESTful en Laravel. Proporc
 
 ---
 
-## 📋 Tabla de Contenidos
+## 📋 Table of Contents
 
--   [Características](#-características)
--   [Requisitos](#-requisitos)
--   [Instalación](#-instalación)
--   [Estructura del Proyecto](#-estructura-del-proyecto)
--   [Guía de Uso](#-guía-de-uso)
-    -   [Crear un Nuevo Recurso](#1-crear-un-nuevo-recurso-completo)
-    -   [Modelo](#2-modelo)
-    -   [Servicio](#3-servicio)
-    -   [Controlador](#4-controlador)
-    -   [Request de Validación](#5-request-de-validación)
-    -   [Recursos API](#6-recursos-api)
-    -   [Rutas](#7-rutas)
-    -   [Migraciones](#8-migraciones)
--   [Sistema de Autenticación](#-sistema-de-autenticación)
--   [Sistema de Filtrado y Ordenamiento](#-sistema-de-filtrado-y-ordenamiento)
--   [Formato de Respuestas](#-formato-de-respuestas)
--   [Manejo de Errores](#-manejo-de-errores)
+-   [Features](#-features)
+-   [Requirements](#-requirements)
+-   [Installation](#-installation)
+-   [Project Structure](#-project-structure)
+-   [Usage Guide](#-usage-guide)
+    -   [Create a New Resource](#1-create-a-new-complete-resource)
+    -   [Model](#2-model)
+    -   [Service](#3-service)
+    -   [Controller](#4-controller)
+    -   [Validation Request](#5-validation-request)
+    -   [API Resources](#6-api-resources)
+    -   [Routes](#7-routes)
+    -   [Migrations](#8-migrations)
+-   [Authentication System](#-authentication-system)
+-   [Filtering and Sorting System](#-filtering-and-sorting-system)
+-   [Response Format](#-response-format)
+-   [Error Handling](#-error-handling)
 -   [Testing](#-testing)
 -   [Deployment](#-deployment)
--   [Licencia](#-licencia)
+-   [License](#-license)
 
 ---
 
-## ✨ Características
+## ✨ Features
 
-| Característica           | Descripción                                          |
+| Feature                  | Description                                          |
 | ------------------------ | ---------------------------------------------------- |
-| 🔐 **Autenticación**     | Sistema unificado (Login/Registro) en Service Layer  |
-| 📦 **CRUD Genérico**     | Operaciones atómicas con transacciones DB            |
-| 📋 **Auditoría**         | Trait Auditable (created_by, updated_by, deleted_by) |
-| 🛡️ **Autorización**      | Policies integradas para control de acceso           |
-| 🔍 **Filtrado Avanzado** | Filtros type-safe usando Enums (FilterType)          |
-| ⚡ **Modernidad PHP**    | Uso de `readonly`, `match` y tipado estricto 8.2+    |
-| ✅ **Validación**        | Sanitización automática y validación de headers      |
-| 🛡️ **Manejo de Errores** | Excepciones globales formateadas a JSON              |
-| 🧪 **Testing**           | Tests de Feature y Unit con >80% de cobertura        |
-| 🗑️ **Soft Deletes**      | Eliminación suave integrada por defecto              |
+| 🔐 **Authentication**    | Unified system (Login/Register) in Service Layer     |
+| 📦 **Generic CRUD**      | Atomic operations with DB transactions               |
+| 📋 **Auditing**          | Auditable Trait (created_by, updated_by, deleted_by) |
+| 🛡️ **Authorization**     | Integrated Policies for access control               |
+| 🔍 **Advanced Filtering**| Type-safe filters using Enums (FilterType)           |
+| ⚡ **Modern PHP**        | Use of `readonly`, `match` and strict typing 8.2+    |
+| ✅ **Validation**        | Automatic sanitization and header validation         |
+| 🛡️ **Error Handling**    | Global exceptions formatted to JSON                  |
+| 🧪 **Testing**           | Feature and Unit tests with >80% coverage            |
+| 🗑️ **Soft Deletes**      | Integrated soft deletes by default                   |
 
 ---
 
-## 📋 Requisitos
+## 📋 Requirements
 
--   PHP 8.2 o superior
+-   PHP 8.2 or higher
 -   Composer
 -   SQLite / MySQL / PostgreSQL
--   Node.js y NPM (opcional, para assets)
+-   Node.js and NPM (optional, for assets)
 
 ---
 
-## 🛠️ Instalación
+## 🛠️ Installation
 
-### 1. Clonar el repositorio
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/tu-usuario/api-archetype.git mi-proyecto
-cd mi-proyecto
+git clone https://github.com/your-username/api-archetype.git my-project
+cd my-project
 ```
 
-### 2. Instalar dependencias
+### 2. Install dependencies
 
 ```bash
 composer install
 ```
 
-### 3. Configurar el entorno
+### 3. Configure the environment
 
 ```bash
 cp .env.example .env
 php artisan key:generate
 ```
 
-### 4. Configurar base de datos
+### 4. Configure database
 
-**SQLite (desarrollo rápido):**
+**SQLite (fast development):**
 
 ```bash
 touch database/database.sqlite
 ```
 
-**MySQL/PostgreSQL:** Editar `.env` con las credenciales correspondientes.
+**MySQL/PostgreSQL:** Edit `.env` with the corresponding credentials.
 
-### 5. Ejecutar migraciones
+### 5. Run migrations
 
 ```bash
 php artisan migrate
 ```
 
-### 6. Iniciar el servidor
+### 6. Start the server
 
 ```bash
 php artisan serve
 ```
 
-La API estará disponible en `http://localhost:8000/api/v1/`
+The API will be available at `http://localhost:8000/api/v1/`
 
 ---
 
-## 📁 Estructura del Proyecto
+## 📁 Project Structure
 
 ```
 app/
 ├── Http/
 │   ├── Controllers/
-│   │   ├── Controller.php          # Controlador base
-│   │   ├── AuthController.php      # Autenticación (thin controller)
-│   │   ├── UserController.php      # Gestión de usuario
-│   │   └── TaskController.php      # Ejemplo CRUD con Policy
+│   │   ├── Controller.php          # Base controller
+│   │   ├── AuthController.php      # Authentication (thin controller)
+│   │   ├── UserController.php      # User management
+│   │   └── TaskController.php      # Example CRUD with Policy
 │   ├── Requests/
-│   │   ├── ApiRequest.php          # Request base con sanitización
-│   │   ├── AuthRequest.php         # Validación de auth
-│   │   ├── UserRequest.php         # Validación de usuario
-│   │   └── TaskRequest.php         # Ejemplo de validación
+│   │   ├── ApiRequest.php          # Base request with sanitization
+│   │   ├── AuthRequest.php         # Auth validation
+│   │   ├── UserRequest.php         # User validation
+│   │   └── TaskRequest.php         # Example validation
 │   └── Resources/
-│       ├── ApiResource.php         # Resource base
-│       ├── ApiCollection.php       # Collection con paginación
-│       ├── TaskResource.php        # Ejemplo resource
-│       └── TaskCollection.php      # Ejemplo collection
+│       ├── ApiResource.php         # Base resource
+│       ├── ApiCollection.php       # Collection with pagination
+│       ├── TaskResource.php        # Example resource
+│       └── TaskCollection.php      # Example collection
 ├── Models/
-│   ├── Model.php                   # Modelo base con hooks
-│   ├── User.php                    # Modelo de usuario
-│   └── Task.php                    # Ejemplo de modelo
+│   ├── Model.php                   # Base model with hooks
+│   ├── User.php                    # User model
+│   └── Task.php                    # Example model
 ├── Services/
-│   ├── Service.php                 # Servicio base CRUD
-│   ├── AuthService.php             # Lógica de autenticación
-│   └── TaskService.php             # Ejemplo de servicio
+│   ├── Service.php                 # Base CRUD Service
+│   ├── AuthService.php             # Authentication logic
+│   └── TaskService.php             # Example service
 ├── Policies/
-│   └── TaskPolicy.php              # Ejemplo de autorización
+│   └── TaskPolicy.php              # Example authorization
 ├── Events/
-│   └── UserRegistered.php          # Evento de registro
+│   └── UserRegistered.php          # Registration event
 ├── Listeners/
 │   ├── CreateInitialUserSettings.php
 │   └── SendWelcomeEmail.php
 └── Traits/
-    ├── Auditable.php               # Tracking de usuarios (created_by...)
-    └── ApiResponseFormatter.php    # Contrato estricto de respuesta
+    ├── Auditable.php               # User tracking (created_by...)
+    └── ApiResponseFormatter.php    # Strict response contract
 
 routes/
-└── api.php                         # Rutas de la API
+└── api.php                         # API Routes
 
 database/
-├── migrations/                     # Migraciones
-├── factories/                      # Factories para testing
-└── seeders/                        # Seeders de datos
+├── migrations/                     # Migrations
+├── factories/                      # Testing factories
+└── seeders/                        # Data seeders
 
 tests/
-├── Feature/                        # Tests de integración
-└── Unit/                           # Tests unitarios
+├── Feature/                        # Integration tests
+└── Unit/                           # Unit tests
 ```
 
 ---
 
-## 📖 Guía de Uso
+## 📖 Usage Guide
 
-### 1. Crear un Nuevo Recurso Completo
+### 1. Create a New Complete Resource
 
-Para crear un nuevo recurso (ejemplo: `Product`), necesitas crear los siguientes archivos:
+To create a new resource (e.g., `Product`), you need to create the following files:
 
 ```bash
-# Crear modelo con migración y factory
+# Create model with migration and factory
 php artisan make:model Product -mf
 
-# Crear controlador
+# Create controller
 php artisan make:controller ProductController
 
-# Crear request de validación
+# Create validation request
 php artisan make:request ProductRequest
 
-# Crear resource y collection
+# Create resource and collection
 php artisan make:resource ProductResource
 php artisan make:resource ProductCollection
 ```
 
-### 2. Modelo
+### 2. Model
 
-Extiende del modelo base para obtener soft deletes y hooks:
+Extend the base model to get soft deletes and hooks:
 
 ```php
 <?php
@@ -217,38 +217,38 @@ class Product extends Model
         'stock' => 'integer',
     ];
 
-    // Hooks disponibles (opcionales)
+    // Available hooks (optional)
     protected function beforeCreate()
     {
-        // Ejecutado antes de crear
+        // Executed before create
     }
 
     protected function afterCreate()
     {
-        // Ejecutado después de crear
+        // Executed after create
     }
 
     protected function beforeUpdate()
     {
-        // Ejecutado antes de actualizar
+        // Executed before update
     }
 
     protected function afterUpdate()
     {
-        // Ejecutado después de actualizar
+        // Executed after update
     }
 
     protected function beforeDelete()
     {
-        // Ejecutado antes de eliminar
+        // Executed before delete
     }
 
     protected function afterDelete()
     {
-        // Ejecutado después de eliminar
+        // Executed after delete
     }
 
-    // Relaciones
+    // Relationships
     public function category()
     {
         return $this->belongsTo(Category::class);
@@ -256,9 +256,9 @@ class Product extends Model
 }
 ```
 
-### 3. Servicio
+### 3. Service
 
-Extiende del servicio base para obtener CRUD y filtrado:
+Extend the base service to get CRUD and filtering:
 
 ```php
 <?php
@@ -279,7 +279,7 @@ class ProductService extends Service
     }
 
     /**
-     * Obtiene productos con filtros aplicados
+     * Get products with filters applied
      */
     public function getProducts(array $params): LengthAwarePaginator
     {
@@ -290,7 +290,7 @@ class ProductService extends Service
     }
 
     /**
-     * Obtiene un producto por ID
+     * Get a product by ID
      */
     public function getProduct(int $id): Product
     {
@@ -298,7 +298,7 @@ class ProductService extends Service
     }
 
     /**
-     * Crea un nuevo producto
+     * Create a new product
      */
     public function createProduct(array $data): Product
     {
@@ -306,7 +306,7 @@ class ProductService extends Service
     }
 
     /**
-     * Actualiza un producto existente
+     * Update an existing product
      */
     public function updateProduct(int $id, array $data): Product
     {
@@ -314,7 +314,7 @@ class ProductService extends Service
     }
 
     /**
-     * Elimina un producto
+     * Delete a product
      */
     public function deleteProduct(int $id): bool
     {
@@ -322,11 +322,11 @@ class ProductService extends Service
     }
 
     // ==========================================
-    // Filtros personalizados (opcional)
+    // Custom filters (optional)
     // ==========================================
 
     /**
-     * Filtra por categoría
+     * Filter by category
      */
     protected function filterByCategory(Builder $query, int $value): Builder
     {
@@ -334,7 +334,7 @@ class ProductService extends Service
     }
 
     /**
-     * Filtra por rango de precio
+     * Filter by price range
      */
     protected function filterByPriceRange(Builder $query, array $value): Builder
     {
@@ -348,7 +348,7 @@ class ProductService extends Service
     }
 
     /**
-     * Filtra productos en stock
+     * Filter in-stock products
      */
     protected function filterByInStock(Builder $query, bool $value): Builder
     {
@@ -358,11 +358,11 @@ class ProductService extends Service
     }
 
     // ==========================================
-    // Configuración de búsqueda global
+    // Global search configuration
     // ==========================================
 
     /**
-     * Columnas para búsqueda global
+     * Columns for global search
      */
     protected function getGlobalSearchColumns(): array
     {
@@ -370,7 +370,7 @@ class ProductService extends Service
     }
 
     /**
-     * Relaciones para búsqueda global (opcional)
+     * Relationships for global search (optional)
      */
     protected function getGlobalSearchRelations(): array
     {
@@ -381,9 +381,9 @@ class ProductService extends Service
 }
 ```
 
-### 4. Controlador
+### 4. Controller
 
-Extiende del controlador base para obtener helpers de respuesta y parámetros:
+Extend the base controller to get response helpers and parameters:
 
 ```php
 <?php
@@ -406,7 +406,7 @@ class ProductController extends Controller
     ) {}
 
     /**
-     * Listar productos
+     * List products
      */
     public function index(Request $request): JsonResponse
     {
@@ -417,17 +417,17 @@ class ProductController extends Controller
     }
 
     /**
-     * Crear producto
+     * Create product
      */
     public function store(ProductRequest $request): JsonResponse
     {
         $product = $this->productService->createProduct($request->validated());
 
-        return $this->successResponse($product, 'Producto creado correctamente', 201);
+        return $this->successResponse($product, 'Product created successfully', 201);
     }
 
     /**
-     * Mostrar producto
+     * Show product
      */
     public function show(int $id): JsonResponse
     {
@@ -437,31 +437,31 @@ class ProductController extends Controller
     }
 
     /**
-     * Actualizar producto
+     * Update product
      */
     public function update(ProductRequest $request, int $id): JsonResponse
     {
         $product = $this->productService->updateProduct($id, $request->validated());
 
-        return $this->successResponse($product, 'Producto actualizado correctamente');
+        return $this->successResponse($product, 'Product updated successfully');
     }
 
     /**
-     * Eliminar producto
+     * Delete product
      */
     public function destroy(int $id): JsonResponse
     {
         $this->productService->deleteProduct($id);
 
-        return $this->successResponse(null, 'Producto eliminado correctamente');
+        return $this->successResponse(null, 'Product deleted successfully');
     }
 
     // ==========================================
-    // Configuración de filtros y ordenamiento
+    // Filters and sorting configuration
     // ==========================================
 
     /**
-     * Filtros permitidos en la URL
+     * Allowed filters in URL
      */
     protected function getAllowedFilters(): array
     {
@@ -469,7 +469,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Campo de ordenamiento por defecto
+     * Default sort field
      */
     protected function getDefaultSortField(): string
     {
@@ -477,7 +477,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Orden por defecto
+     * Default sort order
      */
     protected function getDefaultSortOrder(): string
     {
@@ -486,9 +486,9 @@ class ProductController extends Controller
 }
 ```
 
-### 5. Request de Validación
+### 5. Validation Request
 
-Extiende de `ApiRequest` para sanitización automática:
+Extend `ApiRequest` for automatic sanitization:
 
 ```php
 <?php
@@ -509,7 +509,7 @@ class ProductRequest extends ApiRequest
             'category_id' => 'exists:categories,id',
         ];
 
-        // Campos requeridos solo en creación
+        // Required fields only on creation
         if ($this->isMethod('post')) {
             $rules['name'] = 'required|string|max:255';
             $rules['price'] = 'required|numeric|min:0';
@@ -521,20 +521,20 @@ class ProductRequest extends ApiRequest
     public function messages(): array
     {
         return [
-            'name.required' => 'El nombre es obligatorio',
-            'name.max' => 'El nombre no puede exceder los 255 caracteres',
-            'price.required' => 'El precio es obligatorio',
-            'price.min' => 'El precio debe ser mayor o igual a 0',
-            'stock.min' => 'El stock no puede ser negativo',
-            'category_id.exists' => 'La categoría seleccionada no existe',
+            'name.required' => 'Name is required',
+            'name.max' => 'Name cannot exceed 255 characters',
+            'price.required' => 'Price is required',
+            'price.min' => 'Price must be greater than or equal to 0',
+            'stock.min' => 'Stock cannot be negative',
+            'category_id.exists' => 'Selected category does not exist',
         ];
     }
 }
 ```
 
-### 6. Recursos API
+### 6. API Resources
 
-#### Resource (elemento individual)
+#### Resource (single item)
 
 ```php
 <?php
@@ -561,7 +561,7 @@ class ProductResource extends ApiResource
 }
 ```
 
-#### Collection (lista paginada)
+#### Collection (paginated list)
 
 ```php
 <?php
@@ -572,28 +572,28 @@ namespace App\Http\Resources;
 
 class ProductCollection extends ApiCollection
 {
-    // Ya incluye paginación automática del ApiCollection base
-    // Solo sobrescribe si necesitas personalizar
+    // Already includes automatic pagination from base ApiCollection
+    // Only override if you need customization
 }
 ```
 
-### 7. Rutas
+### 7. Routes
 
-Agregar en `routes/api.php`:
+Add to `routes/api.php`:
 
 ```php
 Route::prefix('v1')->group(function () {
-    // Recurso público
+    // Public resource
     Route::apiResource('products', ProductController::class);
 
-    // O con autenticación
+    // Or with authentication
     Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('products', ProductController::class);
     });
 });
 ```
 
-### 8. Migraciones
+### 8. Migrations
 
 ```php
 <?php
@@ -629,47 +629,47 @@ return new class extends Migration
 
 ---
 
-## 🔐 Sistema de Autenticación
+## 🔐 Authentication System
 
-El arquetipo usa **Laravel Sanctum** con un sistema unificado de login/registro.
+The archetype uses **Laravel Sanctum** with a unified login/register system.
 
 ### Endpoints
 
-| Método   | Endpoint                 | Descripción        | Auth |
+| Method   | Endpoint                 | Description        | Auth |
 | -------- | ------------------------ | ------------------ | ---- |
-| `POST`   | `/api/v1/auth`           | Login o Registro   | No   |
-| `GET`    | `/api/v1/auth`           | Usuario actual     | Sí   |
-| `DELETE` | `/api/v1/auth`           | Logout             | Sí   |
-| `GET`    | `/api/v1/users/profile`  | Obtener perfil     | Sí   |
-| `PUT`    | `/api/v1/users/profile`  | Actualizar perfil  | Sí   |
-| `PUT`    | `/api/v1/users/password` | Cambiar contraseña | Sí   |
+| `POST`   | `/api/v1/auth`           | Login or Register  | No   |
+| `GET`    | `/api/v1/auth`           | Current User       | Yes  |
+| `DELETE` | `/api/v1/auth`           | Logout             | Yes  |
+| `GET`    | `/api/v1/users/profile`  | Get Profile        | Yes  |
+| `PUT`    | `/api/v1/users/profile`  | Update Profile     | Yes  |
+| `PUT`    | `/api/v1/users/password` | Change Password    | Yes  |
 
-### Ejemplos de uso
+### Usage Examples
 
-#### Login/Registro
+#### Login/Register
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth \
   -H "Content-Type: application/json" \
-  -d '{"email": "usuario@ejemplo.com", "password": "password123"}'
+  -d '{"email": "user@example.com", "password": "password123"}'
 ```
 
-**Respuesta exitosa:**
+**Success Response:**
 
 ```json
 {
     "success": true,
-    "message": "Usuario autenticado exitosamente",
+    "message": "User authenticated successfully",
     "data": {
         "id": 1,
-        "name": "Usuario",
-        "email": "usuario@ejemplo.com",
+        "name": "User",
+        "email": "user@example.com",
         "token": "1|abc123..."
     }
 }
 ```
 
-#### Usar el token
+#### Use the Token
 
 ```bash
 curl http://localhost:8000/api/v1/auth \
@@ -685,42 +685,42 @@ curl -X DELETE http://localhost:8000/api/v1/auth \
 
 ---
 
-## 🔍 Sistema de Filtrado y Ordenamiento
+## 🔍 Filtering and Sorting System
 
-### Parámetros de consulta
+### Query Parameters
 
-| Parámetro    | Descripción                 | Ejemplo           |
+| Parameter    | Description                 | Example           |
 | ------------ | --------------------------- | ----------------- |
-| `global`     | Búsqueda en campos de texto | `?global=laptop`  |
-| `sort_by`    | Campo para ordenar          | `?sort_by=price`  |
-| `sort_order` | Dirección (asc/desc)        | `?sort_order=asc` |
-| `page`       | Número de página            | `?page=2`         |
-| `per_page`   | Resultados por página       | `?per_page=20`    |
-| `[campo]`    | Filtro específico           | `?status=active`  |
+| `global`     | Search in text fields       | `?global=laptop`  |
+| `sort_by`    | Field to sort by            | `?sort_by=price`  |
+| `sort_order` | Direction (asc/desc)        | `?sort_order=asc` |
+| `page`       | Page number                 | `?page=2`         |
+| `per_page`   | Results per page            | `?per_page=20`    |
+| `[field]`    | Specific filter             | `?status=active`  |
 
-### Ejemplos
+### Examples
 
 ```bash
-# Búsqueda global
+# Global search
 GET /api/v1/products?global=laptop
 
-# Filtrar por estado
-GET /api/v1/tasks?status=pendiente
+# Filter by status
+GET /api/v1/tasks?status=pending
 
-# Ordenar por precio descendente
+# Sort by price descending
 GET /api/v1/products?sort_by=price&sort_order=desc
 
-# Paginación
+# Pagination
 GET /api/v1/products?page=2&per_page=20
 
-# Combinado
+# Combined
 GET /api/v1/products?global=laptop&category=1&sort_by=price&page=1&per_page=10
 ```
 
-### Filtro de rango de fechas
+### Date Range Filter
 
 ```php
-// En el controlador, agregar a getQueryParams si necesitas rango de fechas
+// In the controller, add to getQueryParams if you need date range
 protected function getQueryParams(Request $request): array
 {
     $params = parent::getQueryParams($request);
@@ -736,31 +736,31 @@ protected function getQueryParams(Request $request): array
 
 ---
 
-## 📤 Formato de Respuestas
+## 📤 Response Format
 
-### Respuesta exitosa
+### Success Response
 
 ```json
 {
     "success": true,
-    "message": "Operación exitosa",
+    "message": "Successful operation",
     "data": {
         "id": 1,
-        "name": "Producto",
+        "name": "Product",
         "price": 99.99
     }
 }
 ```
 
-### Respuesta con paginación (Estructura Unificada)
+### Paginated Response (Unified Structure)
 
 ```json
 {
     "success": true,
-    "message": "Operación exitosa",
+    "message": "Successful operation",
     "data": [
-        { "id": 1, "name": "Producto 1" },
-        { "id": 2, "name": "Producto 2" }
+        { "id": 1, "name": "Product 1" },
+        { "id": 2, "name": "Product 2" }
     ],
     "meta": {
         "pagination": {
@@ -781,53 +781,53 @@ protected function getQueryParams(Request $request): array
 }
 ```
 
-### Contrato de `successResponse()`
+### `successResponse()` Contract
 
-El método `successResponse()` en los controladores aplica un contrato estricto entre la lógica de dominio y la presentación. Acepta únicamente:
+The `successResponse()` method in controllers enforces a strict contract between domain logic and presentation. It accepts only:
 
--   **LengthAwarePaginator**: Se transforma automáticamente usando `transformCollection()`.
--   **Model**: Se transforma automáticamente usando `transformResource()`.
--   **array**: Para payloads explícitos (ej. tokens). No usar para modelos o colecciones.
--   **bool**: Para respuestas simples de estado.
--   **null**: Para acciones sin retorno (ej. delete). No incluye la clave `data` en el JSON.
+-   **LengthAwarePaginator**: Automatically transformed using `transformCollection()`.
+-   **Model**: Automatically transformed using `transformResource()`.
+-   **array**: For explicit payloads (e.g., tokens). Do not use for models or collections.
+-   **bool**: For simple status responses.
+-   **null**: For actions without return (e.g., delete). Does not include the `data` key in JSON.
 
-Cualquier otro tipo (incluyendo pasar directamente un `JsonResource` o `Collection`) lanzará una excepción de arquitectura.
+Any other type (including passing a `JsonResource` or `Collection` directly) will throw an architectural exception.
 
-### Respuesta de error
+### Error Response
 
 ```json
 {
     "success": false,
-    "message": "Error de validación",
+    "message": "Validation error",
     "errors": {
-        "name": ["El nombre es obligatorio"],
-        "price": ["El precio debe ser mayor o igual a 0"]
+        "name": ["Name is required"],
+        "price": ["Price must be greater than or equal to 0"]
     }
 }
 ```
 
 ---
 
-## 🛡️ Manejo de Errores
+## 🛡️ Error Handling
 
-El trait `ApiResponseFormatter` maneja automáticamente los errores:
+The `ApiResponseFormatter` trait automatically handles errors:
 
-| Excepción                       | Código HTTP | Mensaje                |
-| ------------------------------- | ----------- | ---------------------- |
-| `ModelNotFoundException`        | 404         | Recurso no encontrado  |
-| `AuthenticationException`       | 401         | Autenticación fallida  |
-| `AuthorizationException`        | 403         | Autorización fallida   |
-| `ValidationException`           | 422         | Error de validación    |
-| `QueryException`                | 500         | Error en base de datos |
-| `NotFoundHttpException`         | 404         | Ruta no encontrada     |
-| `MethodNotAllowedHttpException` | 405         | Método no permitido    |
-| `ThrottleRequestsException`     | 429         | Demasiadas solicitudes |
+| Exception                       | HTTP Code | Message                |
+| ------------------------------- | --------- | ---------------------- |
+| `ModelNotFoundException`        | 404       | Resource not found     |
+| `AuthenticationException`       | 401       | Authentication failed  |
+| `AuthorizationException`        | 403       | Authorization failed   |
+| `ValidationException`           | 422       | Validation error       |
+| `QueryException`                | 500       | Database error         |
+| `NotFoundHttpException`         | 404       | Route not found        |
+| `MethodNotAllowedHttpException` | 405       | Method not allowed     |
+| `ThrottleRequestsException`     | 429       | Too many requests      |
 
 ---
 
 ## 🧪 Testing
 
-### Estructura de tests
+### Test Structure
 
 ```
 tests/
@@ -844,26 +844,26 @@ tests/
     ├── Requests/
     │   └── TaskRequestTest.php
     └── Services/
-        └── TaskServiceTest.php
+    │   └── TaskServiceTest.php
 ```
 
-### Ejecutar tests
+### Running Tests
 
 ```bash
-# Todos los tests
+# All tests
 php artisan test
 
-# Tests específicos
+# Specific tests
 php artisan test --filter=TaskControllerTest
 
-# Con cobertura
+# With coverage
 php artisan test --coverage
 
-# En paralelo
+# Parallel
 php artisan test --parallel
 ```
 
-### Ejemplo de test
+### Test Example
 
 ```php
 <?php
@@ -911,16 +911,16 @@ class TaskControllerTest extends TestCase
     public function test_can_create_task(): void
     {
         $data = [
-            'title' => 'Nueva tarea',
-            'description' => 'Descripción',
-            'status' => 'pendiente'
+            'title' => 'New task',
+            'description' => 'Description',
+            'status' => 'pending'
         ];
 
         $response = $this->withHeader('Authorization', "Bearer {$this->token}")
             ->postJson('/api/v1/tasks', $data);
 
         $response->assertStatus(201);
-        $this->assertDatabaseHas('tasks', ['title' => 'Nueva tarea']);
+        $this->assertDatabaseHas('tasks', ['title' => 'New task']);
     }
 }
 ```
@@ -929,40 +929,40 @@ class TaskControllerTest extends TestCase
 
 ## 🚀 Deployment
 
-### Preparación para producción
+### Production Preparation
 
 ```bash
-# Optimizar autoloader
+# Optimize autoloader
 composer install --optimize-autoloader --no-dev
 
-# Cachear configuración
+# Cache configuration
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-# Ejecutar migraciones
+# Run migrations
 php artisan migrate --force
 ```
 
-### Variables de entorno importantes
+### Important Environment Variables
 
 ```env
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://tu-dominio.com
+APP_URL=https://your-domain.com
 
-# Base de datos
+# Database
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
-DB_DATABASE=nombre_bd
-DB_USERNAME=usuario
-DB_PASSWORD=contraseña
+DB_DATABASE=db_name
+DB_USERNAME=user
+DB_PASSWORD=password
 
 # Sanctum
-SANCTUM_STATEFUL_DOMAINS=tu-dominio.com
+SANCTUM_STATEFUL_DOMAINS=your-domain.com
 ```
 
-### CI/CD con GitHub Actions
+### CI/CD with GitHub Actions
 
 ```yaml
 name: CI/CD
@@ -994,22 +994,22 @@ jobs:
 
 ---
 
-## 📄 Licencia
+## 📄 License
 
-Este proyecto está licenciado bajo la **Licencia MIT**. Ver el archivo [LICENSE](LICENSE) para más detalles.
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for more details.
 
 ---
 
-## 🤝 Contribución
+## 🤝 Contribution
 
-1. Fork el repositorio
-2. Crea tu rama (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit tus cambios (`git commit -m 'Agregar nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Abre un Pull Request
+1. Fork the repository
+2. Create your branch (`git checkout -b feature/new-feature`)
+3. Commit your changes (`git commit -m 'Add new feature'`)
+4. Push to the branch (`git push origin feature/new-feature`)
+5. Open a Pull Request
 
 ---
 
 <div align="center">
-  <strong>Construido con ❤️ usando Laravel</strong>
+  <strong>Built with ❤️ using Laravel</strong>
 </div>

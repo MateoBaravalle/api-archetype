@@ -30,7 +30,7 @@ abstract class ApiRequest extends FormRequest
     abstract public function rules(): array;
 
     /**
-     * Sanitiza los datos de entrada antes de la validación.
+     * Sanitizes input data before validation.
      */
     public function prepareForValidation(): void
     {
@@ -38,7 +38,7 @@ abstract class ApiRequest extends FormRequest
     }
 
     /**
-     * Sanitiza los datos de entrada.
+     * Sanitizes input data.
      */
     protected function sanitizeInput(): void
     {
@@ -46,13 +46,13 @@ abstract class ApiRequest extends FormRequest
 
         foreach ($input as $key => $value) {
             if (is_string($value)) {
-                // 1. Elimina espacios en blanco al inicio y final
+                // 1. Removes whitespace at the beginning and end
                 $value = trim($value);
 
-                // 2. Elimina caracteres de control (evita errores en logs y exportaciones)
+                // 2. Removes control characters (avoids errors in logs and exports)
                 $value = preg_replace('/[\x00-\x1F\x7F]/u', '', $value);
 
-                // 3. Normaliza espacios múltiples a uno solo para limpieza visual
+                // 3. Normalizes multiple spaces to a single one for visual clarity
                 $value = preg_replace('/\s+/', ' ', $value);
 
                 $input[$key] = $value;
@@ -68,7 +68,7 @@ abstract class ApiRequest extends FormRequest
     protected function failedValidation(Validator $validator): void
     {
         throw new HttpResponseException(
-            $this->errorResponse('Error de validación', 422, $validator->errors()->toArray())
+            $this->errorResponse('Validation error', 422, $validator->errors()->toArray())
         );
     }
 }

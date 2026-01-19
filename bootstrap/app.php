@@ -30,7 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 $data = ApiResponseFormatter::parseExceptionPayload($e);
 
                 if ($data['status'] >= 500) {
-                    Log::error('Error en la aplicación', [
+                    Log::error('Application error', [
                         'exception' => get_class($e),
                         'message' => $e->getMessage(),
                         'file' => $e->getFile(),

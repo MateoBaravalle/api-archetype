@@ -12,12 +12,12 @@ use Symfony\Component\HttpFoundation\Response;
 class ApiRateLimiter
 {
     /**
-     * El limitador de tasa que gestiona este middleware.
+     * The rate limiter managed by this middleware.
      */
     protected RateLimiter $limiter;
 
     /**
-     * Crea una nueva instancia del middleware.
+     * Create a new middleware instance.
      */
     public function __construct(RateLimiter $limiter)
     {
@@ -25,7 +25,7 @@ class ApiRateLimiter
     }
 
     /**
-     * Maneja una solicitud entrante.
+     * Handle an incoming request.
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -62,7 +62,7 @@ class ApiRateLimiter
      */
     protected function getMaxAttempts(): int
     {
-        return 60; // 60 intentos por minuto
+        return 60; // 60 attempts per minute
     }
 
     /**
@@ -70,7 +70,7 @@ class ApiRateLimiter
      */
     protected function getDecayMinutes(): int
     {
-        return 1; // Ventana de tiempo en minutos
+        return 1; // Time window in minutes
     }
 
     /**
@@ -96,9 +96,9 @@ class ApiRateLimiter
     {
         $response = response()->json([
             'success' => false,
-            'message' => 'Demasiadas solicitudes',
+            'message' => 'Too many requests',
             'errors' => [
-                'rate_limit' => 'Has excedido el límite de solicitudes permitidas'
+                'rate_limit' => 'You have exceeded the limit of allowed requests'
             ]
         ], 429);
 

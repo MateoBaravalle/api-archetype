@@ -7,7 +7,7 @@ namespace App\Http\Resources;
 class TaskResource extends ApiResource
 {
     /**
-     * Transforma el recurso en un array.
+     * Transforms the resource into an array.
      *
      * @param  \Illuminate\Http\Request  $request
      */

@@ -22,7 +22,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Macro para agregar columnas de auditoría fácilmente
+        // Macro to easily add audit columns
         Blueprint::macro('auditable', function () {
             /** @var Blueprint $this */
             $this->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
@@ -30,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
             $this->foreignId('deleted_by')->nullable()->constrained('users')->nullOnDelete();
         });
 
-        // Macro para eliminar columnas de auditoría
+        // Macro to remove audit columns
         Blueprint::macro('dropAuditable', function () {
             /** @var Blueprint $this */
             $this->dropForeign(['created_by']);

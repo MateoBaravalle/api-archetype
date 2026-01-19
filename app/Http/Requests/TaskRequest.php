@@ -13,7 +13,7 @@ class TaskRequest extends ApiRequest
      */
     public function rules(): array
     {
-        // Reglas comunes para creación y actualización
+        // Common rules for creation and updating
         $rules = [
             'title' => 'string|max:255',
             'description' => 'nullable|string',
@@ -22,7 +22,7 @@ class TaskRequest extends ApiRequest
             'priority' => 'integer|min:1|max:5',
         ];
 
-        // Para peticiones POST (creación), el título es requerido
+        // For POST requests (creation), the title is required
         if ($this->isMethod('post')) {
             $rules['title'] = 'required|string|max:255';
         }
@@ -36,12 +36,12 @@ class TaskRequest extends ApiRequest
     public function messages(): array
     {
         return [
-            'title.required' => 'El título es obligatorio',
-            'title.max' => 'El título no puede exceder los 255 caracteres',
-            'status.in' => 'El estado debe ser pendiente, en_progreso o completada',
-            'priority.min' => 'La prioridad debe ser al menos 1',
-            'priority.max' => 'La prioridad no puede ser mayor que 5',
-            'due_date.date' => 'La fecha de vencimiento debe ser una fecha válida',
+            'title.required' => 'The title is mandatory',
+            'title.max' => 'The title cannot exceed 255 characters',
+            'status.in' => 'The status must be pending, in_progress or completed',
+            'priority.min' => 'The priority must be at least 1',
+            'priority.max' => 'The priority cannot be greater than 5',
+            'due_date.date' => 'The expiration date must be a valid date',
         ];
     }
 }

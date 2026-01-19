@@ -7,7 +7,7 @@ namespace App\Http\Resources;
 class TaskCollection extends ApiCollection
 {
     /**
-     * La clase de recurso que la colección contiene.
+     * The resource class the collection contains.
      *
      * @var string
      */

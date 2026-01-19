@@ -27,7 +27,7 @@ class CreateInitialUserSettings implements ShouldQueue
      */
     public function handle(UserRegistered $event): void
     {
-        // Aquí iría la lógica para crear las configuraciones iniciales del usuario
-        // Por ejemplo, preferencias de notificación, tema, etc.
+        // The logic for creating the user's initial settings would go here
+        // For example, notification preferences, theme, etc.
     }
 }

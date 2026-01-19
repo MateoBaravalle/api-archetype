@@ -70,7 +70,7 @@ class UserRegisteredTest extends TestCase
 
         $listener->handle($event);
 
-        // Verificamos que el usuario existe y tiene los datos correctos
+        // We verify that the user exists and has the correct data
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
             'email' => $user->email,
@@ -86,7 +86,7 @@ class UserRegisteredTest extends TestCase
 
         $listener->handle($event);
 
-        // Verificamos que el usuario existe y tiene los datos correctos
+        // We verify that the user exists and has the correct data
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
             'email' => $user->email,

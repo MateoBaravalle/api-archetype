@@ -25,17 +25,17 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // API v1 Routes
 Route::prefix('v1')->group(function () {
-    // Rutas de autenticación
+    // Authentication routes
     Route::post('/auth', [AuthController::class, 'store'])->name('auth.store');
     Route::get('/auth', [AuthController::class, 'show'])->middleware('auth:sanctum')->name('auth.show');
     Route::delete('/auth', [AuthController::class, 'destroy'])->middleware('auth:sanctum')->name('auth.destroy');
 
-    // Rutas protegidas
+    // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
-        // Rutas para tareas
+        // Routes for tasks
         Route::apiResource('tasks', TaskController::class);
 
-        // Rutas de perfil de usuario
+        // User profile routes
         Route::get('/users/profile', [UserController::class, 'profile'])->name('users.profile');
         Route::put('/users/profile', [UserController::class, 'updateProfile'])->name('users.profile.update');
         Route::put('/users/password', [UserController::class, 'updatePassword'])->name('users.password.update');

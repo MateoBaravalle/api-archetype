@@ -28,8 +28,8 @@ class SendWelcomeEmail implements ShouldQueue
      */
     public function handle(UserRegistered $event): void
     {
-        // Aquí iría la lógica para enviar el email de bienvenida
-        // Por ahora solo simulamos el envío
+        // The logic for sending the welcome email would go here
+        // For now, we only simulate the sending
         Mail::fake();
     }
 }

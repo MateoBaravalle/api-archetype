@@ -20,7 +20,7 @@ class TaskController extends Controller
     ) {}
 
     /**
-     * Mostrar un listado de tareas.
+     * Display a listing of tasks.
      */
     public function index(SearchRequest $request): JsonResponse
     {
@@ -31,17 +31,17 @@ class TaskController extends Controller
     }
 
     /**
-     * Almacenar una nueva tarea.
+     * Store a new task.
      */
     public function store(TaskRequest $request): JsonResponse
     {
         $task = $this->taskService->createTask($request->validated());
 
-        return $this->successResponse($task, 'Tarea creada correctamente', 201);
+        return $this->successResponse($task, 'Task created successfully', 201);
     }
 
     /**
-     * Mostrar una tarea específica.
+     * Display a specific task.
      */
     public function show(int $id): JsonResponse
     {
@@ -53,25 +53,25 @@ class TaskController extends Controller
     }
 
     /**
-     * Actualizar una tarea específica.
+     * Update a specific task.
      */
     public function update(TaskRequest $request, int $id): JsonResponse
     {
-        $task = $this->taskService->getTask($id); // Obtenemos el modelo primero para la policy
+        $task = $this->taskService->getTask($id); // We get the model first for the policy
         
         $this->authorize('update', $task);
 
         $task = $this->taskService->updateTask($id, $request->validated());
 
-        return $this->successResponse($task, 'Tarea actualizada correctamente');
+        return $this->successResponse($task, 'Task updated successfully');
     }
 
     /**
-     * Eliminar una tarea específica.
+     * Delete a specific task.
      */
     public function destroy(int $id): JsonResponse
     {
-        $task = $this->taskService->getTask($id); // Obtenemos el modelo primero
+        $task = $this->taskService->getTask($id); // We get the model first
         
         $this->authorize('delete', $task);
         

@@ -25,7 +25,7 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Configurar el limitador de tasas para la API
+        // Configure the rate limiter for the API
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });

@@ -18,7 +18,7 @@ class ValidateApiHeaders
         if (!$this->validateAcceptHeader($request)) {
             return response()->json([
                 'success' => false,
-                'message' => 'El header Accept debe ser application/json'
+                'message' => 'The Accept header must be application/json'
             ], 400);
         }
 
@@ -26,7 +26,7 @@ class ValidateApiHeaders
             if (!$this->validateContentTypeHeader($request)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'El header Content-Type debe ser application/json'
+                    'message' => 'The Content-Type header must be application/json'
                 ], 400);
             }
         }

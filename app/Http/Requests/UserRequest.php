@@ -16,7 +16,7 @@ class UserRequest extends ApiRequest
      */
     public function rules(): array
     {
-        // Reglas comunes para todas las peticiones
+        // Common rules for all requests
         $rules = [
             'name' => 'string|min:3|max:255|regex:/^[\p{L}\s]+$/u',
             'email' => [
@@ -26,7 +26,7 @@ class UserRequest extends ApiRequest
             ],
         ];
 
-        // Si es una actualización de contraseña
+        // If it's a password update
         if ($this->isMethod('put') && $this->route()->getName() === 'users.password.update') {
             return [
                 'current_password' => 'required|current_password',
@@ -34,7 +34,7 @@ class UserRequest extends ApiRequest
             ];
         }
 
-        // Si es una actualización de perfil
+        // If it's a profile update
         if ($this->isMethod('put') && $this->route()->getName() === 'users.profile.update') {
             $rules['name'] = 'required|' . $rules['name'];
         }
@@ -50,19 +50,19 @@ class UserRequest extends ApiRequest
     public function messages(): array
     {
         return [
-            'name.required' => 'El nombre es obligatorio.',
-            'name.min' => 'El nombre debe tener al menos 3 caracteres.',
-            'name.max' => 'El nombre no puede tener más de 255 caracteres.',
-            'name.regex' => 'El nombre solo puede contener letras y espacios.',
-            'email.email' => 'El correo electrónico debe ser válido.',
-            'email.max' => 'El correo electrónico no puede tener más de 255 caracteres.',
-            'email.unique' => 'Este correo electrónico ya está registrado.',
-            'current_password.required' => 'La contraseña actual es obligatoria.',
-            'current_password.current_password' => 'La contraseña actual es incorrecta.',
-            'password.required' => 'La nueva contraseña es obligatoria.',
-            'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
-            'password.regex' => 'La contraseña debe contener al menos una letra mayúscula, una minúscula, un número y un carácter especial (@$!%*?&.).',
-            'password.confirmed' => 'La confirmación de la contraseña no coincide.',
+            'name.required' => 'The name is mandatory.',
+            'name.min' => 'The name must be at least 3 characters.',
+            'name.max' => 'The name cannot have more than 255 characters.',
+            'name.regex' => 'The name can only contain letters and spaces.',
+            'email.email' => 'The email must be valid.',
+            'email.max' => 'The email cannot have more than 255 characters.',
+            'email.unique' => 'This email is already registered.',
+            'current_password.required' => 'The current password is mandatory.',
+            'current_password.current_password' => 'The current password is incorrect.',
+            'password.required' => 'The new password is mandatory.',
+            'password.min' => 'The password must be at least 8 characters.',
+            'password.regex' => 'The password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&.).',
+            'password.confirmed' => 'The password confirmation does not match.',
         ];
     }
 }

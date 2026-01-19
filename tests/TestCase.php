@@ -18,21 +18,21 @@ abstract class TestCase extends BaseTestCase
     use WithFaker;
 
     /**
-     * Configuración base para todos los tests
+     * Base configuration for all tests
      */
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Desactivar envío de emails por defecto
+        // Disable email sending by default
         Mail::fake();
 
-        // Desactivar colas por defecto
+        // Disable queues by default
         Queue::fake();
     }
 
     /**
-     * Helper para crear un usuario autenticado
+     * Helper to create an authenticated user
      */
     protected function createAuthenticatedUser($attributes = [])
     {
@@ -50,7 +50,7 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Helper para verificar la estructura de respuesta API
+     * Helper to verify the API response structure
      */
     protected function assertApiResponse($response, $status = 200)
     {
@@ -60,15 +60,15 @@ abstract class TestCase extends BaseTestCase
                 'message',
             ]);
 
-        // Si la respuesta incluye la clave 'data' (incluso si es null), la verificamos
-        // Si no la incluye (caso de retorno null en successResponse), omitimos el chequeo de estructura de data
+        // If the response includes the 'data' key (even if it's null), we verify it
+        // If it doesn't include it (case of returning null in successResponse), we skip the data structure check
         if (array_key_exists('data', $response->json())) {
             $response->assertJsonStructure(['data']);
         }
     }
 
     /**
-     * Helper para verificar la estructura de respuesta de error API
+     * Helper to verify the API error response structure
      */
     protected function assertApiError($response, $status = 400)
     {

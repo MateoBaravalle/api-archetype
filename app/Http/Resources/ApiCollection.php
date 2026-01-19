@@ -9,7 +9,7 @@ use Illuminate\Http\Resources\Json\ResourceCollection;
 class ApiCollection extends ResourceCollection
 {
     /**
-     * Transforma la colección en un array.
+     * Transforms the collection into an array.
      *
      * @param  \Illuminate\Http\Request  $request
      */

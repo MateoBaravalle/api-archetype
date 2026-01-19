@@ -19,10 +19,10 @@ class TaskService extends Service
     }
 
     /**
-     * Obtiene tareas con filtros aplicados
+     * Gets tasks with filters applied
      *
-     * @param  array  $params  Parámetros para filtrado, ordenamiento y paginación
-     * @return LengthAwarePaginator Colección paginada de tareas
+     * @param  array  $params  Parameters for filtering, sorting, and pagination
+     * @return LengthAwarePaginator Paginated collection of tasks
      */
     public function getTasks(array $params): LengthAwarePaginator
     {
@@ -34,10 +34,12 @@ class TaskService extends Service
     }
 
     /**
-     * Obtiene una tarea por ID
+     * Gets a task by ID
      *
-     * @param  int  $id  ID de la tarea
-     * @return Task Tarea encontrada
+     * @param  int  $id  Task ID
+     * @return Task Task found
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
     public function getTask(int $id): Task
     {
@@ -45,10 +47,10 @@ class TaskService extends Service
     }
 
     /**
-     * Crea una nueva tarea
+     * Creates a new task
      *
-     * @param  array  $data  Datos de la tarea
-     * @return Task Tarea creada
+     * @param  array  $data  Task data
+     * @return Task Task created
      */
     public function createTask(array $data): Task
     {
@@ -56,11 +58,13 @@ class TaskService extends Service
     }
 
     /**
-     * Actualiza una tarea existente
+     * Updates an existing task
      *
-     * @param  int  $id  ID de la tarea
-     * @param  array  $data  Datos actualizados
-     * @return Task Tarea actualizada
+     * @param  int  $id  Task ID
+     * @param  array  $data  Updated data
+     * @return Task Task updated
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
     public function updateTask(int $id, array $data): Task
     {
@@ -68,10 +72,12 @@ class TaskService extends Service
     }
 
     /**
-     * Elimina una tarea
+     * Deletes a task
      *
-     * @param  int  $id  ID de la tarea
-     * @return bool Indicador de éxito
+     * @param  int  $id  Task ID
+     * @return bool Success indicator
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
     public function deleteTask(int $id): bool
     {

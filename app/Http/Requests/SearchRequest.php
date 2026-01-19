@@ -7,10 +7,10 @@ namespace App\Http\Requests;
 use Illuminate\Support\Str;
 
 /**
- * Request global para validación de búsquedas, paginación y filtros.
+ * Global request for search, pagination, and filter validation.
  * 
- * Úsalo en los métodos index() de tus controladores para asegurar
- * que los parámetros de ordenamiento, paginación y rangos sean seguros.
+ * Use it in the index() methods of your controllers to ensure
+ * that sorting, pagination, and range parameters are safe.
  */
 class SearchRequest extends ApiRequest
 {
@@ -27,35 +27,35 @@ class SearchRequest extends ApiRequest
             'filters' => 'sometimes|array',
         ];
 
-        // Validar dinámicamente cualquier filtro de rango detectado
+        // Dynamically validate any detected range filter
         foreach ($this->all() as $key => $value) {
-            // Ignoramos valores vacíos
+            // Ignore empty values
             if ($value === null || $value === '') {
                 continue;
             }
 
-            // 1. Validar Rangos de Fechas (_start / _end)
+            // 1. Validate Date Ranges (_start / _end)
             if (Str::endsWith($key, '_start')) {
                 $rules[$key] = 'date';
             }
             if (Str::endsWith($key, '_end')) {
                 $rules[$key] = 'date';
 
-                // Validación de consistencia: Fecha Fin >= Fecha Inicio
+                // Consistency validation: End Date >= Start Date
                 $prefix = substr($key, 0, -4);
                 if ($this->has($prefix . '_start')) {
                     $rules[$key] .= '|after_or_equal:' . $prefix . '_start';
                 }
             }
 
-            // 2. Validar Rangos Numéricos (_min / _max)
+            // 2. Validate Numeric Ranges (_min / _max)
             if (Str::endsWith($key, '_min')) {
                 $rules[$key] = 'numeric';
             }
             if (Str::endsWith($key, '_max')) {
                 $rules[$key] = 'numeric';
 
-                // Validación de consistencia: Máximo >= Mínimo
+                // Consistency validation: Maximum >= Minimum
                 $prefix = substr($key, 0, -4);
                 if ($this->has($prefix . '_min')) {
                     $rules[$key] .= '|gte:' . $prefix . '_min';
@@ -67,19 +67,19 @@ class SearchRequest extends ApiRequest
     }
 
     /**
-     * Mensajes de error personalizados
+     * Custom error messages
      */
     public function messages(): array
     {
         return [
-            'page.integer' => 'El número de página debe ser un entero.',
-            'page.min' => 'El número de página debe ser al menos 1.',
-            'per_page.max' => 'La cantidad de registros por página no puede exceder 100.',
-            'sort_order.in' => 'El orden debe ser asc o desc.',
-            '*.date' => 'El campo debe ser una fecha válida.',
-            '*.after_or_equal' => 'La fecha final debe ser posterior o igual a la fecha inicial.',
-            '*.numeric' => 'El campo debe ser un número.',
-            '*.gte' => 'El valor máximo debe ser mayor o igual al valor mínimo.',
+            'page.integer' => 'The page number must be an integer.',
+            'page.min' => 'The page number must be at least 1.',
+            'per_page.max' => 'The number of records per page cannot exceed 100.',
+            'sort_order.in' => 'The order must be asc or desc.',
+            '*.date' => 'The field must be a valid date.',
+            '*.after_or_equal' => 'The end date must be after or equal to the start date.',
+            '*.numeric' => 'The field must be a number.',
+            '*.gte' => 'The maximum value must be greater than or equal to the minimum value.',
         ];
     }
 }

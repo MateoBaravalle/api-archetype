@@ -17,7 +17,7 @@ class AuditableTest extends TestCase
     {
         parent::setUp();
         
-        // Crear tabla temporal para el test
+        // Create temporary table for the test
         \Illuminate\Support\Facades\Schema::create('auditable_dummies', function ($table) {
             $table->id();
             $table->string('title')->nullable();

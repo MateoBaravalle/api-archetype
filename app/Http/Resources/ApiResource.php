@@ -9,7 +9,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class ApiResource extends JsonResource
 {
     /**
-     * Transforma el recurso en un array.
+     * Transforms the resource into an array.
      *
      * @param  \Illuminate\Http\Request  $request
      */

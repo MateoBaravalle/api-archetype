@@ -67,13 +67,13 @@ class TaskPolicy
     }
 
     /**
-     * Verifica si el usuario es el creador de la tarea.
+     * Verify if the user is the creator of the task.
      * 
-     * Utilizamos el campo 'created_by' proporcionado por el trait Auditable.
+     * We use the 'created_by' field provided by the Auditable trait.
      */
     protected function isOwner(User $user, Task $task): bool
     {
-        // Si la tarea no tiene creador (ej. seeders viejos), nadie es dueño
+        // If the task has no creator (e.g. old seeders), no one is the owner
         if (is_null($task->created_by)) {
             return false;
         }

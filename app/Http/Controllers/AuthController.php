@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\AuthRequest;
-use App\Models\User; // Mantengo este import por si acaso, aunque ya no se usa explícitamente en store, el replace lo pedía.
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,7 +16,7 @@ class AuthController extends Controller
     ) {}
 
     /**
-     * Autenticación de usuario (login o registro)
+     * User authentication (login or registration)
      */
     public function store(AuthRequest $request): JsonResponse
     {
@@ -31,20 +30,20 @@ class AuthController extends Controller
     }
 
     /**
-     * Logout del usuario (revocar token)
+     * User logout (revoke token)
      */
     public function destroy(Request $request): JsonResponse
     {
         $this->authService->revokeAllTokens($request->user());
 
-        return $this->successResponse(null, 'Sesión cerrada exitosamente');
+        return $this->successResponse(null, 'Session closed successfully');
     }
 
     /**
-     * Obtener el usuario autenticado
+     * Get the authenticated user
      */
     public function show(Request $request): JsonResponse
     {
-        return $this->successResponse($request->user(), 'Usuario obtenido exitosamente');
+        return $this->successResponse($request->user(), 'User obtained successfully');
     }
 }

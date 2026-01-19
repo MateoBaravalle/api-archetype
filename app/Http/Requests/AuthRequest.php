@@ -20,7 +20,7 @@ class AuthRequest extends ApiRequest
             'password' => 'required|min:8|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]+$/',
         ];
 
-        // Si el email no existe, aplicamos las reglas de registro
+        // If email does not exist, apply registration rules
         if (! User::where('email', $this->email)->exists()) {
             $rules = array_merge($rules, [
                 'name' => 'required|string|min:3|max:255|regex:/^[\p{L}\s]+$/u',
@@ -39,16 +39,16 @@ class AuthRequest extends ApiRequest
     public function messages(): array
     {
         return [
-            'name.required' => 'El nombre es obligatorio.',
-            'name.max' => 'El nombre no puede tener más de 255 caracteres.',
-            'name.regex' => 'El nombre solo puede contener letras y espacios.',
-            'email.required' => 'El correo electrónico es obligatorio.',
-            'email.email' => 'El correo electrónico debe ser válido.',
-            'email.max' => 'El correo electrónico no puede tener más de 255 caracteres.',
-            'password.required' => 'La contraseña es obligatoria.',
-            'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
-            'password.regex' => 'La contraseña debe contener al menos una letra mayúscula, una minúscula, un número y un carácter especial (@$!%*?&.).',
-            'password.confirmed' => 'La confirmación de la contraseña no coincide.',
+            'name.required' => 'The name is mandatory.',
+            'name.max' => 'The name cannot have more than 255 characters.',
+            'name.regex' => 'The name can only contain letters and spaces.',
+            'email.required' => 'The email is mandatory.',
+            'email.email' => 'The email must be valid.',
+            'email.max' => 'The email cannot have more than 255 characters.',
+            'password.required' => 'The password is mandatory.',
+            'password.min' => 'The password must be at least 8 characters.',
+            'password.regex' => 'The password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&.).',
+            'password.confirmed' => 'The password confirmation does not match.',
         ];
     }
 }

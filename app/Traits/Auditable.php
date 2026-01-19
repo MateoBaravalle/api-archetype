@@ -17,7 +17,7 @@ trait Auditable
      */
     public static function bootAuditable(): void
     {
-        // Al crear: guardar created_by y updated_by
+        // On creating: save created_by and updated_by
         static::creating(function (Model $model) {
             $userId = Auth::id();
             if ($userId) {
@@ -26,7 +26,7 @@ trait Auditable
             }
         });
 
-        // Al actualizar: actualizar updated_by
+        // On updating: update updated_by
         static::updating(function (Model $model) {
             $userId = Auth::id();
             if ($userId) {
@@ -34,25 +34,25 @@ trait Auditable
             }
         });
 
-        // Al borrar: si es SoftDelete, guardar deleted_by
+        // On deleting: if SoftDelete, save deleted_by
         static::deleting(function (Model $model) {
-            // Verificar si usa SoftDeletes y si tenemos usuario
+            // Check if it uses SoftDeletes and if we have a user
             $usesSoftDeletes = in_array(SoftDeletes::class, class_uses_recursive($model));
             $userId = Auth::id();
 
             if ($usesSoftDeletes && $userId && ! $model->isForceDeleting()) {
-                // Necesitamos guardar el deleted_by antes de que Laravel ejecute el soft delete
+                // Need to save deleted_by before Laravel executes the soft delete
                 $model->deleted_by = $userId;
                 
-                // Usamos saveQuietly para evitar disparar eventos 'updating' recursivos
-                // que alterarían el updated_at/updated_by incorrectamente en un borrado.
+                // Use saveQuietly to avoid triggering recursive 'updating' events
+                // that would incorrectly alter updated_at/updated_by during a delete.
                 $model->saveQuietly();
             }
         });
     }
 
     /**
-     * Relación con el creador
+     * Relationship with the creator
      */
     public function createdBy(): BelongsTo
     {
@@ -60,7 +60,7 @@ trait Auditable
     }
 
     /**
-     * Relación con el editor
+     * Relationship with the editor
      */
     public function updatedBy(): BelongsTo
     {
@@ -68,7 +68,7 @@ trait Auditable
     }
 
     /**
-     * Relación con el eliminador
+     * Relationship with the deleter
      */
     public function deletedBy(): BelongsTo
     {

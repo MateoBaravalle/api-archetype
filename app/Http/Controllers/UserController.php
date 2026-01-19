@@ -13,26 +13,26 @@ use Illuminate\Support\Facades\Hash;
 class UserController extends Controller
 {
     /**
-     * Obtener el perfil del usuario autenticado
+     * Get authenticated user profile
      */
     public function profile(Request $request): JsonResponse
     {
-        return $this->successResponse($request->user(), 'Perfil obtenido exitosamente');
+        return $this->successResponse($request->user(), 'Profile obtained successfully');
     }
 
     /**
-     * Actualizar el perfil del usuario
+     * Update user profile
      */
     public function updateProfile(UserRequest $request): JsonResponse
     {
         $user = $request->user();
         $user->update($request->validated());
 
-        return $this->successResponse($user, 'Perfil actualizado exitosamente');
+        return $this->successResponse($user, 'Profile updated successfully');
     }
 
     /**
-     * Actualizar la contraseña del usuario
+     * Update user password
      */
     public function updatePassword(UserRequest $request): JsonResponse
     {
@@ -41,6 +41,6 @@ class UserController extends Controller
             'password' => Hash::make($request->validated('password')),
         ]);
 
-        return $this->successResponse(null, 'Contraseña actualizada exitosamente');
+        return $this->successResponse(null, 'Password updated successfully');
     }
 }

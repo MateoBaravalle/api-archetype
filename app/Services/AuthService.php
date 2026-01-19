@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Hash;
 class AuthService
 {
     /**
-     * Autentica o registra un usuario basado en si existe o no
+     * Authenticates or registers a user based on whether they exist or not
      *
      * @return array{user: User, message: string, status: int}
      * @throws \Illuminate\Validation\ValidationException
@@ -20,15 +20,15 @@ class AuthService
     {
         $user = User::where('email', $credentials['email'])->first();
 
-        // 1. Flujo de Registro
+        // 1. Registration Flow
         if (! $user) {
             return $this->registerUser($credentials);
         }
 
-        // 2. Flujo de Login
+        // 2. Login Flow
         if (! Hash::check($credentials['password'], $user->password)) {
             throw \Illuminate\Validation\ValidationException::withMessages([
-                'email' => ['Las credenciales proporcionadas son incorrectas.'],
+                'email' => ['The provided credentials are incorrect.'],
             ]);
         }
 
@@ -36,34 +36,34 @@ class AuthService
 
         return [
             'user' => $user,
-            'message' => 'Usuario autenticado exitosamente',
+            'message' => 'User authenticated successfully',
             'status' => 200,
         ];
     }
 
     /**
-     * Crea un nuevo usuario y su token inicial
+     * Creates a new user and their initial token
      */
     protected function registerUser(array $userData): array
     {
         return DB::transaction(function () use ($userData) {
             $user = $this->createUser($userData);
 
-            // Disparamos el evento de registro
+            // Trigger the registration event Maryland
             event(new \App\Events\UserRegistered($user));
 
             $user->token = $this->createApiToken($user, 'auth-token');
 
             return [
                 'user' => $user,
-                'message' => 'Usuario registrado exitosamente',
+                'message' => 'User registered successfully',
                 'status' => 201,
             ];
         });
     }
 
     /**
-     * Crea un nuevo usuario en base de datos
+     * Creates a new user in the database
      */
     protected function createUser(array $userData): User
     {
@@ -75,7 +75,7 @@ class AuthService
     }
 
     /**
-     * Revoca todos los tokens del usuario
+     * Revokes all user tokens
      */
     public function revokeAllTokens(User $user): void
     {
@@ -83,7 +83,7 @@ class AuthService
     }
 
     /**
-     * Crea un nuevo token API para el usuario
+     * Creates a new API token for the user
      */
     public function createApiToken(User $user, string $tokenName): string
     {

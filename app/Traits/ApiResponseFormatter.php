@@ -25,13 +25,13 @@ use JsonSerializable;
 /**
  * Trait ApiResponseFormatter
  *
- * Proporciona métodos para formatear y manejar respuestas de la API,
- * incluyendo el manejo de excepciones y la transformación de recursos.
+ * Provides methods to format and handle API responses,
+ * including exception handling and resource transformation.
  */
 trait ApiResponseFormatter
 {
     /**
-     * Formatea una respuesta de error
+     * Formats an error response
      */
     protected function errorResponse(string $message, int $status = 500, array $errors = []): JsonResponse
     {
@@ -47,22 +47,22 @@ trait ApiResponseFormatter
         return $this->jsonResponseWithPreserveDecimal($response, $status);
     }
     /**
-     * Formatea una respuesta exitosa
+     * Formats a success response
      */
-    protected function successResponse($data, string $message = 'Operación exitosa', int $status = 200): JsonResponse
+    protected function successResponse($data, string $message = 'Operation successful', int $status = 200): JsonResponse
     {
-        // 1. Si es un Paginator, aplicamos transformación de colección
+        // 1. If it's a Paginator, apply collection transformation
         if ($data instanceof LengthAwarePaginator) {
             $data = $this->transformCollection($data);
         }
-        // 2. Si es un Model, aplicamos transformación de recurso
+        // 2. If it's a Model, apply resource transformation
         elseif ($data instanceof Model) {
             $data = $this->transformResource($data);
         }
-        // 3. Tipos básicos permitidos (null, bool, array), el resto lanza excepción (fail fast)
+        // 3. Basic allowed types (null, bool, array), everything else throws an exception (fail fast)
         elseif ($data !== null && !is_array($data) && !is_bool($data)) {
             $type = is_object($data) ? get_class($data) : gettype($data);
-            throw new \InvalidArgumentException("Error de arquitectura: successResponse no acepta {$type}. Use Model, Paginator, array, bool o null.");
+            throw new \InvalidArgumentException("Architecture error: successResponse does not accept {$type}. Use Model, Paginator, array, bool or null.");
         }
 
         $response = [
@@ -70,7 +70,7 @@ trait ApiResponseFormatter
             'message' => $message,
         ];
 
-        // 4. Formatear el resultado final
+        // 4. Format final result
         if ($data instanceof ResourceCollection) {
             $responseData = $data->toArray(request());
             $response = array_merge($response, $responseData);
@@ -84,37 +84,40 @@ trait ApiResponseFormatter
     }
 
     /**
-     * Mapea una excepción a un formato de respuesta estándar
-     * Centralizamos aquí para que bootstrap/app.php y handleError usen lo mismo.
+     * Maps an exception to a standard response format
+     * Centralized here so bootstrap/app.php and handleError use the same.
      */
     public static function parseExceptionPayload(\Throwable $e, int $defaultCode = 500): array
     {
         $status = $defaultCode;
-        $message = 'Ha ocurrido un error inesperado';
+        $message = 'An unexpected error has occurred';
         $errors = [];
 
         if ($e instanceof ValidationException) {
             $status = 422;
-            $message = 'Error de validación';
+            $message = 'Validation error';
             $errors = $e->errors();
-        } elseif ($e instanceof ModelNotFoundException || $e instanceof NotFoundHttpException) {
+        } elseif ($e instanceof ModelNotFoundException) {
             $status = 404;
-            $message = 'Recurso no encontrado';
+            $message = 'Resource not found';
+        } elseif ($e instanceof NotFoundHttpException) {
+            $status = 404;
+            $message = 'Route not found';
         } elseif ($e instanceof AuthenticationException) {
             $status = 401;
-            $message = 'No autenticado';
+            $message = 'Unauthenticated';
         } elseif ($e instanceof AuthorizationException || $e instanceof \Illuminate\Auth\Access\AuthorizationException || $e instanceof \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException) {
             $status = 403;
-            $message = 'No tienes permisos para realizar esta acción';
+            $message = 'You do not have permission to perform this action';
         } elseif ($e instanceof MethodNotAllowedHttpException) {
             $status = 405;
-            $message = 'Método no permitido';
+            $message = 'Method not allowed';
         } elseif ($e instanceof ThrottleRequestsException) {
             $status = 429;
-            $message = 'Demasiadas solicitudes';
+            $message = 'Too many requests';
         } elseif ($e instanceof QueryException) {
             $status = 500;
-            $message = 'Error en base de datos';
+            $message = 'Database error';
             if (config('app.debug')) {
                 $errors['sql'] = $e->getMessage();
             }
@@ -136,7 +139,7 @@ trait ApiResponseFormatter
     }
 
     /**
-     * Transforma una colección de recursos
+     * Transforms a resource collection
      */
     protected function transformCollection(LengthAwarePaginator $collection, ?string $resourceClass = null): ResourceCollection
     {
@@ -144,10 +147,10 @@ trait ApiResponseFormatter
         $collectionClass = $model ? $this->getCollectionClass($model) : ApiCollection::class;
 
         if ($collectionClass === ApiCollection::class || $collectionClass === ResourceCollection::class) {
-            // Si usamos la clase base, nos aseguramos de que use el Resource correcto para los ítems
+            // If using the base class, ensure it uses the correct Resource for items
             $resourceCollection = $resourceClass ? $resourceClass::collection($collection) : new ApiCollection($collection);
 
-            // Si es la anónima de Laravel, la envolvemos en nuestra ApiCollection para tener el formato meta/links
+            // If it's Laravel's anonymous one, wrap it in our ApiCollection to have meta/links format
             return ($resourceCollection instanceof ApiCollection) ? $resourceCollection : new ApiCollection($collection);
         }
 
@@ -155,7 +158,7 @@ trait ApiResponseFormatter
     }
 
     /**
-     * Transforma un recurso individual
+     * Transforms an individual resource
      */
     protected function transformResource($resource): JsonResource
     {
@@ -168,7 +171,7 @@ trait ApiResponseFormatter
     }
 
     /**
-     * Obtiene la clase de Resource para un modelo
+     * Gets the Resource class for a model
      */
     protected function getResourceClass(Model $model): string
     {
@@ -183,7 +186,7 @@ trait ApiResponseFormatter
     }
 
     /**
-     * Obtiene la clase de Collection para un modelo
+     * Gets the Collection class for a model
      */
     protected function getCollectionClass(Model $model): string
     {
@@ -198,8 +201,8 @@ trait ApiResponseFormatter
     }
 
     /**
-     * Crea una respuesta JSON con JSON_PRESERVE_ZERO_FRACTION
-     * para que los floats se serialicen correctamente (300.0 en lugar de 300)
+     * Creates a JSON response with JSON_PRESERVE_ZERO_FRACTION
+     * so floats are serialized correctly (300.0 instead of 300)
      */
     protected function jsonResponseWithPreserveDecimal(array $data, int $status = 200): JsonResponse
     {

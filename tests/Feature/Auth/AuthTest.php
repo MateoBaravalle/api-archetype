@@ -82,7 +82,7 @@ class AuthTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'message' => 'Sesión cerrada exitosamente',
+                'message' => 'Session closed successfully',
             ]);
 
         $this->assertDatabaseCount('personal_access_tokens', 0);
@@ -148,7 +148,7 @@ class AuthTest extends TestCase
     public function test_user_cannot_register_with_invalid_name(): void
     {
         $userData = [
-            'name' => 'AB', // Menos de 3 caracteres
+            'name' => 'AB', // Less than 3 characters
             'email' => 'valido@email.com',
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
@@ -208,7 +208,7 @@ class AuthTest extends TestCase
 
         $response->assertStatus(401)
             ->assertJson([
-                'message' => 'No autenticado',
+                'message' => 'Unauthenticated',
             ]);
     }
 
@@ -220,7 +220,7 @@ class AuthTest extends TestCase
 
         $response->assertStatus(401)
             ->assertJson([
-                'message' => 'No autenticado',
+                'message' => 'Unauthenticated',
             ]);
     }
 

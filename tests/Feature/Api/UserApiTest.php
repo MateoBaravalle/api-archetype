@@ -66,7 +66,7 @@ class UserApiTest extends TestCase
     public function it_validates_update_data()
     {
         $updateData = [
-            'name' => 'AB', // Menos de 3 caracteres
+            'name' => 'AB', // Less than 3 characters
             'email' => 'invalid-email',
         ];
 
@@ -91,7 +91,7 @@ class UserApiTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'message' => 'Contraseña actualizada exitosamente',
+                'message' => 'Password updated successfully',
             ]);
     }
 

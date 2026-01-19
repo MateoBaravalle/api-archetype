@@ -16,7 +16,7 @@ class UserRegistered
     use SerializesModels;
 
     /**
-     * El usuario que se registró
+     * The user that registered
      */
     public User $user;
 

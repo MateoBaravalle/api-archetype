@@ -20,7 +20,7 @@ class Task extends Model
     protected $table = 'tasks';
 
     /**
-     * Los atributos que son asignables masivamente.
+     * Attributes that are mass assignable.
      *
      * @var array
      */
@@ -33,7 +33,7 @@ class Task extends Model
     ];
 
     /**
-     * Los atributos que deben ser convertidos a tipos nativos.
+     * Attributes that should be cast.
      *
      * @var array
      */

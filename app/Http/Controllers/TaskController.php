@@ -24,8 +24,7 @@ class TaskController extends Controller
      */
     public function index(SearchRequest $request): JsonResponse
     {
-        $params = $this->getQueryParams($request);
-        $tasks = $this->taskService->getTasks($params);
+        $tasks = $this->taskService->getTasks($request->validated());
 
         return $this->successResponse($tasks);
     }
@@ -79,27 +78,7 @@ class TaskController extends Controller
 
         return $this->successResponse(
             null,
-            'Tarea eliminada correctamente'
+            'Task deleted successfully'
         );
-    }
-
-    /**
-     * Definir los filtros permitidos
-     */
-    protected function filters(): array
-    {
-        return [
-            'global' => FilterType::GLOBAL_SEARCH,
-            'status' => FilterType::EXACT,
-            'priority' => FilterType::EXACT,
-        ];
-    }
-
-    /**
-     * Definir el campo de ordenamiento por defecto
-     */
-    protected function getDefaultSortField(): string
-    {
-        return 'priority';
     }
 }

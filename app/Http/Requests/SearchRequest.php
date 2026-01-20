@@ -63,6 +63,14 @@ class SearchRequest extends ApiRequest
             }
         }
 
+        // Allow any other query string parameter to pass validation
+        // This is necessary for $request->validated() to include 'status', 'priority', etc.
+        foreach ($this->query() as $key => $value) {
+            if (! isset($rules[$key])) {
+                $rules[$key] = 'sometimes';
+            }
+        }
+
         return $rules;
     }
 

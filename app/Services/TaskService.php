@@ -5,18 +5,16 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Task;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 
-class TaskService extends Service
+class TaskService
 {
     /**
      * Constructor
      */
-    public function __construct(Task $model)
-    {
-        parent::__construct($model);
-    }
+    public function __construct(
+        protected Task $model
+    ) {}
 
     /**
      * Gets tasks with filters applied
@@ -26,11 +24,9 @@ class TaskService extends Service
      */
     public function getTasks(array $params): LengthAwarePaginator
     {
-        $query = $this->model->query();
-
-        $query = $this->getFilteredAndSorted($query, $params);
-
-        return $this->getAll($params['page'], $params['per_page'], $query);
+        return $this->model
+            ->filterAndSort($params)
+            ->paginateFromParams($params);
     }
 
     /**
@@ -43,7 +39,7 @@ class TaskService extends Service
      */
     public function getTask(int $id): Task
     {
-        return $this->getById($id);
+        return $this->model->findOrFail($id);
     }
 
     /**
@@ -54,7 +50,7 @@ class TaskService extends Service
      */
     public function createTask(array $data): Task
     {
-        return $this->create($data);
+        return $this->model->create($data);
     }
 
     /**
@@ -68,7 +64,10 @@ class TaskService extends Service
      */
     public function updateTask(int $id, array $data): Task
     {
-        return $this->update($id, $data);
+        $task = $this->getTask($id);
+        $task->update($data);
+
+        return $task->fresh();
     }
 
     /**
@@ -81,30 +80,8 @@ class TaskService extends Service
      */
     public function deleteTask(int $id): bool
     {
-        return $this->delete($id);
-    }
+        $task = $this->getTask($id);
 
-    /**
-     * Filtra por estado
-     */
-    protected function filterByStatus(Builder $query, string $value): Builder
-    {
-        return $query->where('status', $value);
-    }
-
-    /**
-     * Filtra por prioridad
-     */
-    protected function filterByPriority(Builder $query, int $value): Builder
-    {
-        return $query->where('priority', $value);
-    }
-
-    /**
-     * Define las columnas para la búsqueda global
-     */
-    protected function getGlobalSearchColumns(): array
-    {
-        return ['title', 'description'];
+        return (bool) $task->delete();
     }
 }

@@ -1,35 +1,35 @@
-# 🧪 Guía de Testing
+# 🧪 Testing Guide
 
-Guía completa para escribir y ejecutar tests en el arquetipo.
+Complete guide for writing and executing tests in the archetype.
 
 ---
 
-## Índice
+## Index
 
-- [Estructura de Tests](#estructura-de-tests)
-- [Ejecutar Tests](#ejecutar-tests)
-- [Tests de Controlador](#tests-de-controlador)
-- [Tests de Servicio](#tests-de-servicio)
-- [Tests de Request](#tests-de-request)
-- [Tests de Modelo](#tests-de-modelo)
-- [Helpers de Testing](#helpers-de-testing)
+- [Tests Structure](#tests-structure)
+- [Running Tests](#running-tests)
+- [Controller Tests](#controller-tests)
+- [Service Tests](#service-tests)
+- [Request Tests](#request-tests)
+- [Model Tests](#model-tests)
+- [Testing Helpers](#testing-helpers)
 - [Factories](#factories)
 - [Mocking](#mocking)
 
 ---
 
-## Estructura de Tests
+## Tests Structure
 
 ```
 tests/
-├── Feature/                    # Tests de integración
-│   ├── Api/                    # Tests de endpoints
+├── Feature/                    # Integration tests
+│   ├── Api/                    # Endpoint tests
 │   │   └── ProductApiTest.php
-│   ├── Auth/                   # Tests de autenticación
+│   ├── Auth/                   # Authentication tests
 │   │   └── AuthenticationTest.php
-│   └── Events/                 # Tests de eventos
+│   └── Events/                 # Event tests
 │       └── UserRegisteredTest.php
-├── Unit/                       # Tests unitarios
+├── Unit/                       # Unit tests
 │   ├── Models/
 │   │   └── ProductTest.php
 │   ├── Requests/
@@ -37,55 +37,55 @@ tests/
 │   └── Services/
 │       └── ProductServiceTest.php
 ├── CreatesApplication.php
-└── TestCase.php                # Clase base
+└── TestCase.php                # Base class
 ```
 
 ---
 
-## Ejecutar Tests
+## Running Tests
 
-### Comandos básicos
+### Basic commands
 
 ```bash
-# Ejecutar todos los tests
+# Run all tests
 php artisan test
 
-# Con verbose output
+# With verbose output
 php artisan test -v
 
-# Ejecutar un archivo específico
+# Run a specific file
 php artisan test tests/Feature/Api/ProductApiTest.php
 
-# Ejecutar un test específico
+# Run a specific test
 php artisan test --filter=test_can_create_product
 
-# Ejecutar tests de una clase
+# Run tests from a class
 php artisan test --filter=ProductApiTest
 
-# Ejecutar en paralelo (más rápido)
+# Run in parallel (faster)
 php artisan test --parallel
 
-# Con cobertura de código
+# With code coverage
 php artisan test --coverage
 
-# Generar reporte HTML de cobertura
+# Generate HTML coverage report
 php artisan test --coverage-html coverage
 ```
 
-### Usando PHPUnit directamente
+### Using PHPUnit directly
 
 ```bash
 ./vendor/bin/phpunit
 
-# Con configuración específica
+# With specific configuration
 ./vendor/bin/phpunit --configuration phpunit.xml
 ```
 
 ---
 
-## Tests de Controlador
+## Controller Tests
 
-### Estructura básica
+### Basic Structure
 
 ```php
 <?php
@@ -108,13 +108,13 @@ class ProductApiTest extends TestCase
     {
         parent::setUp();
         
-        // Crear usuario y token para autenticación
+        // Create user and token for authentication
         $this->user = User::factory()->create();
         $this->token = $this->user->createToken('test')->plainTextToken;
     }
 
     /**
-     * Helper para requests autenticados
+     * Helper for authenticated requests
      */
     private function authHeaders(): array
     {
@@ -123,7 +123,7 @@ class ProductApiTest extends TestCase
 }
 ```
 
-### Test de listado (index)
+### List Test (index)
 
 ```php
 public function test_can_list_products(): void
@@ -170,15 +170,15 @@ public function test_can_filter_products(): void
 
 public function test_can_search_products(): void
 {
-    Product::factory()->create(['name' => 'Laptop Gaming']);
-    Product::factory()->create(['name' => 'Mouse Wireless']);
+    Product::factory()->create(['name' => 'Gaming Laptop']);
+    Product::factory()->create(['name' => 'Wireless Mouse']);
 
     $response = $this->withHeaders($this->authHeaders())
         ->getJson('/api/v1/products?global=laptop');
 
     $response->assertStatus(200)
         ->assertJsonCount(1, 'data.data')
-        ->assertJsonPath('data.data.0.name', 'Laptop Gaming');
+        ->assertJsonPath('data.data.0.name', 'Gaming Laptop');
 }
 
 public function test_can_paginate_products(): void
@@ -195,14 +195,14 @@ public function test_can_paginate_products(): void
 }
 ```
 
-### Test de creación (store)
+### Create Test (store)
 
 ```php
 public function test_can_create_product(): void
 {
     $data = [
-        'name' => 'Nuevo Producto',
-        'description' => 'Descripción del producto',
+        'name' => 'New Product',
+        'description' => 'Product description',
         'price' => 99.99,
         'stock' => 10
     ];
@@ -216,10 +216,10 @@ public function test_can_create_product(): void
             'message',
             'data' => ['id', 'name', 'price']
         ])
-        ->assertJsonPath('data.name', 'Nuevo Producto');
+        ->assertJsonPath('data.name', 'New Product');
 
     $this->assertDatabaseHas('products', [
-        'name' => 'Nuevo Producto',
+        'name' => 'New Product',
         'price' => 99.99
     ]);
 }
@@ -239,7 +239,7 @@ public function test_cannot_create_product_with_invalid_data(): void
     $response = $this->withHeaders($this->authHeaders())
         ->postJson('/api/v1/products', [
             'name' => 'Test',
-            'price' => -10 // Precio negativo
+            'price' => -10 // Negative price
         ]);
 
     $response->assertStatus(422)
@@ -247,7 +247,7 @@ public function test_cannot_create_product_with_invalid_data(): void
 }
 ```
 
-### Test de lectura (show)
+### Read Test (show)
 
 ```php
 public function test_can_get_single_product(): void
@@ -272,7 +272,7 @@ public function test_returns_404_for_nonexistent_product(): void
 }
 ```
 
-### Test de actualización (update)
+### Update Test (update)
 
 ```php
 public function test_can_update_product(): void
@@ -281,15 +281,15 @@ public function test_can_update_product(): void
 
     $response = $this->withHeaders($this->authHeaders())
         ->putJson("/api/v1/products/{$product->id}", [
-            'name' => 'Actualizado'
+            'name' => 'Updated'
         ]);
 
     $response->assertStatus(200)
-        ->assertJsonPath('data.name', 'Actualizado');
+        ->assertJsonPath('data.name', 'Updated');
 
     $this->assertDatabaseHas('products', [
         'id' => $product->id,
-        'name' => 'Actualizado'
+        'name' => 'Updated'
     ]);
 }
 
@@ -313,7 +313,7 @@ public function test_can_partial_update_product(): void
 }
 ```
 
-### Test de eliminación (destroy)
+### Delete Test (destroy)
 
 ```php
 public function test_can_delete_product(): void
@@ -326,14 +326,14 @@ public function test_can_delete_product(): void
     $response->assertStatus(200)
         ->assertJsonPath('success', true);
 
-    // Verificar soft delete
+    // Verify soft delete
     $this->assertSoftDeleted('products', ['id' => $product->id]);
 }
 ```
 
 ---
 
-## Tests de Servicio
+## Service Tests
 
 ```php
 <?php
@@ -441,7 +441,7 @@ class ProductServiceTest extends TestCase
 
 ---
 
-## Tests de Request
+## Request Tests
 
 ```php
 <?php
@@ -458,7 +458,7 @@ class ProductRequestTest extends TestCase
     {
         $request = new ProductRequest();
         
-        // Simular método HTTP
+        // Mock HTTP method
         $request->setMethod($method);
         
         $validator = Validator::make($data, $request->rules());
@@ -511,7 +511,7 @@ class ProductRequestTest extends TestCase
 
 ---
 
-## Tests de Modelo
+## Model Tests
 
 ```php
 <?php
@@ -574,9 +574,9 @@ class ProductTest extends TestCase
 
 ---
 
-## Helpers de Testing
+## Testing Helpers
 
-### TestCase base
+### Base TestCase
 
 ```php
 // tests/TestCase.php
@@ -592,7 +592,7 @@ abstract class TestCase extends BaseTestCase
     use CreatesApplication;
 
     /**
-     * Crear usuario autenticado con token
+     * Create authenticated user with token
      */
     protected function createAuthenticatedUser(): array
     {
@@ -607,7 +607,7 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Hacer request autenticado
+     * Make authenticated request
      */
     protected function authJson(string $method, string $uri, array $data = []): \Illuminate\Testing\TestResponse
     {
@@ -619,18 +619,18 @@ abstract class TestCase extends BaseTestCase
 }
 ```
 
-### Usar los helpers
+### Using Helpers
 
 ```php
 public function test_example(): void
 {
-    // Opción 1: Usando createAuthenticatedUser
+    // Option 1: Using createAuthenticatedUser
     $auth = $this->createAuthenticatedUser();
     
     $response = $this->withHeaders($auth['headers'])
         ->getJson('/api/v1/products');
 
-    // Opción 2: Usando authJson
+    // Option 2: Using authJson
     $response = $this->authJson('GET', '/api/v1/products');
 }
 ```
@@ -639,7 +639,7 @@ public function test_example(): void
 
 ## Factories
 
-### Definir factory
+### Define Factory
 
 ```php
 // database/factories/ProductFactory.php
@@ -666,7 +666,7 @@ class ProductFactory extends Factory
     }
 
     /**
-     * Estado: producto activo
+     * State: active product
      */
     public function active(): static
     {
@@ -676,7 +676,7 @@ class ProductFactory extends Factory
     }
 
     /**
-     * Estado: sin stock
+     * State: out of stock
      */
     public function outOfStock(): static
     {
@@ -686,7 +686,7 @@ class ProductFactory extends Factory
     }
 
     /**
-     * Estado: precio alto
+     * State: high price
      */
     public function expensive(): static
     {
@@ -697,27 +697,27 @@ class ProductFactory extends Factory
 }
 ```
 
-### Usar factory
+### Using Factory
 
 ```php
-// Crear un producto
+// Create a product
 $product = Product::factory()->create();
 
-// Crear múltiples
+// Create multiple
 $products = Product::factory()->count(10)->create();
 
-// Con estado específico
+// With specific state
 $activeProducts = Product::factory()->active()->count(5)->create();
 
-// Combinar estados
+// Combine states
 $expensiveActive = Product::factory()
     ->active()
     ->expensive()
     ->create();
 
-// Sobrescribir atributos
+// Override attributes
 $product = Product::factory()->create([
-    'name' => 'Nombre Específico',
+    'name' => 'Specific Name',
     'price' => 999.99
 ]);
 ```
@@ -726,7 +726,7 @@ $product = Product::factory()->create([
 
 ## Mocking
 
-### Mock de servicios
+### Service Mocking
 
 ```php
 use Mockery;
@@ -746,7 +746,7 @@ public function test_with_mocked_service(): void
 }
 ```
 
-### Mock de eventos
+### Event Mocking
 
 ```php
 use Illuminate\Support\Facades\Event;
@@ -755,9 +755,9 @@ public function test_event_is_dispatched(): void
 {
     Event::fake();
 
-    // Acción que dispara el evento
+    // Action that triggers the event
     $this->postJson('/api/v1/auth', [
-        'email' => 'nuevo@test.com',
+        'email' => 'new@test.com',
         'password' => 'password123'
     ]);
 
@@ -765,7 +765,7 @@ public function test_event_is_dispatched(): void
 }
 ```
 
-### Mock de Mail
+### Mail Mocking
 
 ```php
 use Illuminate\Support\Facades\Mail;
@@ -774,21 +774,21 @@ public function test_welcome_email_sent(): void
 {
     Mail::fake();
 
-    // Acción que envía email
+    // Action that sends email
     $this->postJson('/api/v1/auth', [
-        'email' => 'nuevo@test.com',
+        'email' => 'new@test.com',
         'password' => 'password123'
     ]);
 
     Mail::assertSent(WelcomeMail::class, function ($mail) {
-        return $mail->hasTo('nuevo@test.com');
+        return $mail->hasTo('new@test.com');
     });
 }
 ```
 
 ---
 
-## Configuración phpunit.xml
+## Configuration phpunit.xml
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -798,6 +798,32 @@ public function test_welcome_email_sent(): void
          colors="true"
 >
     <testsuites>
+        <testsuite name="Unit">
+            <directory suffix="Test.php">./tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory suffix="Test.php">./tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <coverage>
+        <include>
+            <directory suffix=".php">./app</directory>
+        </include>
+    </coverage>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="CACHE_DRIVER" value="array"/>
+        <env name="DB_CONNECTION" value="sqlite"/>
+        <env name="DB_DATABASE" value=":memory:"/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+    </php>
+</phpunit>
+```
+
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
         </testsuite>

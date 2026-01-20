@@ -1,32 +1,32 @@
-# ⚡ Guía de Inicio Rápido
+# ⚡ Quick Start Guide
 
-Esta guía te llevará desde cero hasta tener tu primer endpoint funcionando en menos de 10 minutos.
-
----
-
-## 🎯 Objetivo
-
-Crear una API para gestionar **Productos** con operaciones CRUD completas.
+This guide will take you from zero to having your first endpoint working in less than 10 minutes.
 
 ---
 
-## Paso 1: Crear los archivos
+## 🎯 Goal
 
-Ejecuta los siguientes comandos:
+Create an API to manage **Products** with full CRUD operations.
+
+---
+
+## Step 1: Create the files
+
+Run the following commands:
 
 ```bash
-# Crear modelo con migración y factory
+# Create model with migration and factory
 php artisan make:model Product -mf
 
-# Nota: El controlador, request, resource y service se crean manualmente
-# siguiendo la estructura del arquetipo
+# Note: The controller, request, resource and service are created manually
+# following the archetype structure
 ```
 
 ---
 
-## Paso 2: Configurar la migración
+## Step 2: Configure the migration
 
-Edita `database/migrations/xxxx_create_products_table.php`:
+Edit `database/migrations/xxxx_create_products_table.php`:
 
 ```php
 <?php
@@ -60,7 +60,7 @@ return new class extends Migration
 };
 ```
 
-Ejecuta la migración:
+Run the migration:
 
 ```bash
 php artisan migrate
@@ -68,9 +68,9 @@ php artisan migrate
 
 ---
 
-## Paso 3: Crear el Modelo
+## Step 3: Create the Model
 
-Crea `app/Models/Product.php`:
+Create `app/Models/Product.php`:
 
 ```php
 <?php
@@ -107,9 +107,9 @@ class Product extends Model
 
 ---
 
-## Paso 4: Crear el Servicio
+## Step 4: Create the Service
 
-Crea `app/Services/ProductService.php`:
+Create `app/Services/ProductService.php`:
 
 ```php
 <?php
@@ -171,9 +171,9 @@ class ProductService extends Service
 
 ---
 
-## Paso 5: Crear el Request
+## Step 5: Create the Request
 
-Crea `app/Http/Requests/ProductRequest.php`:
+Create `app/Http/Requests/ProductRequest.php`:
 
 ```php
 <?php
@@ -205,9 +205,9 @@ class ProductRequest extends ApiRequest
     public function messages(): array
     {
         return [
-            'name.required' => 'El nombre es obligatorio',
-            'price.required' => 'El precio es obligatorio',
-            'price.min' => 'El precio no puede ser negativo',
+            'name.required' => 'The name is required',
+            'price.required' => 'The price is required',
+            'price.min' => 'The price cannot be negative',
         ];
     }
 }
@@ -215,9 +215,9 @@ class ProductRequest extends ApiRequest
 
 ---
 
-## Paso 6: Crear el Resource
+## Step 6: Create the Resource
 
-Crea `app/Http/Resources/ProductResource.php`:
+Create `app/Http/Resources/ProductResource.php`:
 
 ```php
 <?php
@@ -244,7 +244,7 @@ class ProductResource extends ApiResource
 }
 ```
 
-Crea `app/Http/Resources/ProductCollection.php`:
+Create `app/Http/Resources/ProductCollection.php`:
 
 ```php
 <?php
@@ -255,15 +255,15 @@ namespace App\Http\Resources;
 
 class ProductCollection extends ApiCollection
 {
-    // Hereda la paginación del ApiCollection
+    // Inherits pagination from ApiCollection
 }
 ```
 
 ---
 
-## Paso 7: Crear el Controlador
+## Step 7: Create the Controller
 
-Crea `app/Http/Controllers/ProductController.php`:
+Create `app/Http/Controllers/ProductController.php`:
 
 ```php
 <?php
@@ -305,7 +305,7 @@ class ProductController extends Controller
 
             return $this->successResponse(
                 $this->transformResource($product),
-                'Producto creado correctamente',
+                'Product created successfully',
                 201
             );
         } catch (\Exception $e) {
@@ -331,7 +331,7 @@ class ProductController extends Controller
 
             return $this->successResponse(
                 $this->transformResource($product),
-                'Producto actualizado correctamente'
+                'Product updated successfully'
             );
         } catch (\Exception $e) {
             return $this->handleError($e);
@@ -343,7 +343,7 @@ class ProductController extends Controller
         try {
             $this->productService->deleteProduct($id);
 
-            return $this->successResponse(null, 'Producto eliminado correctamente');
+            return $this->successResponse(null, 'Product deleted successfully');
         } catch (\Exception $e) {
             return $this->handleError($e);
         }
@@ -358,15 +358,15 @@ class ProductController extends Controller
 
 ---
 
-## Paso 8: Agregar las rutas
+## Step 8: Add the routes
 
-Edita `routes/api.php`:
+Edit `routes/api.php`:
 
 ```php
 use App\Http\Controllers\ProductController;
 
 Route::prefix('v1')->group(function () {
-    // ... rutas existentes ...
+    // ... existing routes ...
     
     Route::apiResource('products', ProductController::class);
 });
@@ -374,48 +374,48 @@ Route::prefix('v1')->group(function () {
 
 ---
 
-## Paso 9: ¡Probar!
+## Step 9: Test!
 
-Inicia el servidor:
+Start the server:
 
 ```bash
 php artisan serve
 ```
 
-### Crear un producto
+### Create a product
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/products \
   -H "Content-Type: application/json" \
-  -d '{"name": "Laptop", "price": 999.99, "description": "Laptop gaming"}'
+  -d '{"name": "Laptop", "price": 999.99, "description": "Gaming Laptop"}'
 ```
 
-### Listar productos
+### List products
 
 ```bash
 curl http://localhost:8000/api/v1/products
 ```
 
-### Filtrar y buscar
+### Filter and search
 
 ```bash
-# Búsqueda global
+# Global search
 curl "http://localhost:8000/api/v1/products?global=laptop"
 
-# Filtrar por status
+# Filter by status
 curl "http://localhost:8000/api/v1/products?status=active"
 
-# Ordenar
+# Sort
 curl "http://localhost:8000/api/v1/products?sort_by=price&sort_order=desc"
 ```
 
-### Obtener un producto
+### Get a product
 
 ```bash
 curl http://localhost:8000/api/v1/products/1
 ```
 
-### Actualizar un producto
+### Update a product
 
 ```bash
 curl -X PUT http://localhost:8000/api/v1/products/1 \
@@ -423,7 +423,7 @@ curl -X PUT http://localhost:8000/api/v1/products/1 \
   -d '{"price": 899.99}'
 ```
 
-### Eliminar un producto
+### Delete a product
 
 ```bash
 curl -X DELETE http://localhost:8000/api/v1/products/1
@@ -431,25 +431,25 @@ curl -X DELETE http://localhost:8000/api/v1/products/1
 
 ---
 
-## 🎉 ¡Listo!
+## 🎉 Done!
 
-Ya tienes una API CRUD completa con:
+You now have a complete CRUD API with:
 
-- ✅ Paginación automática
-- ✅ Búsqueda global
-- ✅ Filtros personalizados
-- ✅ Ordenamiento flexible
-- ✅ Validación de datos
-- ✅ Respuestas JSON estandarizadas
-- ✅ Manejo de errores
+- ✅ Automatic pagination
+- ✅ Global search
+- ✅ Custom filters
+- ✅ Flexible sorting
+- ✅ Data validation
+- ✅ Standardized JSON responses
+- ✅ Error handling
 - ✅ Soft deletes
 
 ---
 
-## Próximos pasos
+## Next steps
 
-- Agregar autenticación con `auth:sanctum` middleware
-- Crear tests para el nuevo recurso
-- Agregar más filtros personalizados
-- Implementar relaciones con otros modelos
+- Add authentication with `auth:sanctum` middleware
+- Create tests for the new resource
+- Add more custom filters
+- Implement relationships with other models
 

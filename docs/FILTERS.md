@@ -1,25 +1,25 @@
-# 🔍 Sistema de Filtrado y Ordenamiento
+# 🔍 Filtering and Sorting System
 
-Guía completa sobre cómo usar y extender el sistema de filtrado del arquetipo.
-
----
-
-## Índice
-
-- [Filtros Básicos](#filtros-básicos)
-- [Búsqueda Global](#búsqueda-global)
-- [Filtros Personalizados](#filtros-personalizados)
-- [Ordenamiento](#ordenamiento)
-- [Rango de Fechas](#rango-de-fechas)
-- [Paginación](#paginación)
+Complete guide on how to use and extend the archetype's filtering system.
 
 ---
 
-## Filtros Básicos
+## Index
 
-### Configuración en el Controlador
+- [Basic Filters](#basic-filters)
+- [Global Search](#global-search)
+- [Custom Filters](#custom-filters)
+- [Sorting](#sorting)
+- [Date Ranges](#date-ranges)
+- [Pagination](#pagination)
 
-Define los filtros permitidos en tu controlador:
+---
+
+## Basic Filters
+
+### Controller Configuration
+
+Define allowed filters in your controller:
 
 ```php
 class ProductController extends Controller
@@ -31,19 +31,19 @@ class ProductController extends Controller
 }
 ```
 
-### Uso en la URL
+### Usage in URL
 
 ```bash
-# Filtro simple
+# Simple filter
 GET /api/v1/products?status=active
 
-# Múltiples filtros
+# Multiple filters
 GET /api/v1/products?status=active&category=electronics
 ```
 
-### Comportamiento por defecto
+### Default Behavior
 
-Por defecto, los filtros usan `LIKE` para strings:
+By default, filters use `LIKE` for strings:
 
 ```php
 // URL: ?name=laptop
@@ -52,11 +52,11 @@ Por defecto, los filtros usan `LIKE` para strings:
 
 ---
 
-## Búsqueda Global
+## Global Search
 
-### Configuración
+### Configuration
 
-En tu servicio, define las columnas buscables:
+In your service, define searchable columns:
 
 ```php
 class ProductService extends Service
@@ -68,51 +68,51 @@ class ProductService extends Service
 }
 ```
 
-### Uso
+### Usage
 
 ```bash
-# Busca en todas las columnas definidas
+# Search in all defined columns
 GET /api/v1/products?global=laptop
 ```
 
-### Búsqueda en Relaciones
+### Search in Relations
 
-Puedes buscar en relaciones usando notación de puntos (dot-notation) para relaciones anidadas:
+You can search in relations using dot-notation for nested relations:
 
 ```php
 protected function getGlobalSearchRelations(): array
 {
     return [
-        'category' => ['name', 'slug'], // Relación directa
+        'category' => ['name', 'slug'], // Direct relation
         'brand' => ['name'],
-        'user.profile' => ['address', 'phone'], // Relación anidada: usuario -> perfil -> campos
+        'user.profile' => ['address', 'phone'], // Nested relation: user -> profile -> fields
     ];
 }
 ```
 
-### Características de Seguridad y Búsqueda Inteligente
+### Security and Smart Search Features
 
-1. **Búsqueda Tokenizada**: El término de búsqueda se divide en "tokens". Si buscas "Laptop Pro", el sistema buscará registros que contengan "Laptop" Y "Pro" (en cualquier orden y columna), ofreciendo resultados más relevantes.
-2. **Validación de Schema**: El sistema verifica automáticamente que los filtros básicos correspondan a columnas reales en la tabla, evitando errores SQL por parámetros inválidos.
+1. **Tokenized Search**: The search term is split into "tokens". If you search "Laptop Pro", the system will search specifically for records containing "Laptop" AND "Pro" (in any order and column), providing more relevant results.
+2. **Schema Validation**: The system automatically verifies that basic filters correspond to real columns in the table, preventing SQL errors from invalid parameters.
 
 ---
 
-## Filtros Personalizados
+## Custom Filters
 
-### Crear un filtro personalizado
+### Create a Custom Filter
 
-En tu servicio (o modelo, usando scopes), crea un método `filterBy{Campo}`. Este método recibe el valor del filtro y **todos los parámetros** como segundo argumento, permitiendo lógica condicional compleja.
+In your service (or model, using scopes), create a `filterBy{Field}` method. This method receives the filter value and **all parameters** as the second argument, allowing for complex conditional logic.
 
 ```php
 class Product extends Model
 {
     /**
-     * Filtro exacto por status
-     * Recibe $value (valor del filtro) y $params (todos los filtros aplicados)
+     * Exact filter by status
+     * Receives $value (filter value) and $params (all applied filters)
      */
     public function scopeFilterByStatus(Builder $query, string $value, array $params = []): Builder
     {
-        // Ejemplo: Si se solicita 'archived' pero no se incluye 'include_archived', ignorar
+        // Example: If 'archived' is requested but 'include_archived' is not included, ignore
         if ($value === 'archived' && !($params['include_archived'] ?? false)) {
              return $query;
         }
@@ -121,7 +121,7 @@ class Product extends Model
     }
 
     /**
-     * Filtro por rango de precios
+     * Filter by price range
      */
     protected function filterByPriceRange(Builder $query, array $value): Builder
     {
@@ -135,7 +135,7 @@ class Product extends Model
     }
 
     /**
-     * Filtro por múltiples categorías
+     * Filter by multiple categories
      */
     protected function filterByCategories(Builder $query, array $value): Builder
     {
@@ -143,7 +143,7 @@ class Product extends Model
     }
 
     /**
-     * Filtro booleano
+     * Boolean filter
      */
     protected function filterByInStock(Builder $query, bool $value): Builder
     {
@@ -153,7 +153,7 @@ class Product extends Model
     }
 
     /**
-     * Filtro por relación
+     * Filter by relationship
      */
     protected function filterByBrand(Builder $query, string $value): Builder
     {
@@ -164,27 +164,27 @@ class Product extends Model
 }
 ```
 
-### Uso de filtros personalizados
+### Using Custom Filters
 
 ```bash
-# Filtro simple
+# Simple filter
 GET /api/v1/products?status=active
 
-# Filtro con array (depende de cómo parsees la URL)
+# Array filter (depends on how you parse the URL)
 GET /api/v1/products?categories[]=1&categories[]=2
 
-# Filtro booleano
+# Boolean filter
 GET /api/v1/products?in_stock=true
 
-# Filtro por relación
+# Relationship filter
 GET /api/v1/products?brand=apple
 ```
 
 ---
 
-## Ordenamiento
+## Sorting
 
-### Configuración por defecto
+### Default Configuration
 
 ```php
 class ProductController extends Controller
@@ -201,25 +201,25 @@ class ProductController extends Controller
 }
 ```
 
-### Uso
+### Usage
 
 ```bash
-# Ordenar por precio ascendente
+# Sort by price ascending
 GET /api/v1/products?sort_by=price&sort_order=asc
 
-# Ordenar por fecha descendente
+# Sort by date descending
 GET /api/v1/products?sort_by=created_at&sort_order=desc
 ```
 
-### Ordenamiento personalizado
+### Custom Sorting
 
-En tu servicio, crea un método `sortBy{Campo}`:
+In your service, create a `sortBy{Field}` method:
 
 ```php
 class ProductService extends Service
 {
     /**
-     * Ordenar por popularidad (campo calculado)
+     * Sort by popularity (calculated field)
      */
     protected function sortByPopularity(Builder $query, string $order): void
     {
@@ -228,7 +228,7 @@ class ProductService extends Service
     }
 
     /**
-     * Ordenar por nombre de categoría
+     * Sort by category name
      */
     protected function sortByCategory(Builder $query, string $order): void
     {
@@ -241,26 +241,26 @@ class ProductService extends Service
 
 ---
 
-## Rango de Fechas
+## Date Ranges
 
-### Configuración
+### Configuration
 
-El servicio base incluye soporte para filtrado por rango de fechas.
+The base service includes support for date range filtering.
 
 ```php
 class ProductService extends Service
 {
     /**
-     * Define la columna de fecha para el filtro de rango
+     * Define the date column for the range filter
      */
     protected function getDateColumn(): string
     {
-        return 'created_at'; // Por defecto
+        return 'created_at'; // Default
     }
 }
 ```
 
-### Agregar soporte en el controlador
+### Add Support in Controller
 
 ```php
 class ProductController extends Controller
@@ -269,7 +269,7 @@ class ProductController extends Controller
     {
         $params = parent::getQueryParams($request);
         
-        // Agregar rango de fechas
+        // Add date range
         $params['date_range'] = [
             'start' => $request->query('date_from'),
             'end' => $request->query('date_to'),
@@ -280,52 +280,52 @@ class ProductController extends Controller
 }
 ```
 
-### Uso
+### Usage
 
 ```bash
-# Productos creados después de una fecha
+# Products created after a date
 GET /api/v1/products?date_from=2024-01-01
 
-# Productos creados antes de una fecha
+# Products created before a date
 GET /api/v1/products?date_to=2024-12-31
 
-# Rango completo
+# Full range
 GET /api/v1/products?date_from=2024-01-01&date_to=2024-12-31
 ```
 
 ---
 
-## Paginación
+## Pagination
 
-### Parámetros
+### Parameters
 
-| Parámetro | Descripción | Default |
+| Parameter | Description | Default |
 |-----------|-------------|---------|
-| `page` | Número de página | 1 |
-| `per_page` | Resultados por página | 10 |
+| `page` | Page number | 1 |
+| `per_page` | Results per page | 10 |
 
-### Uso
+### Usage
 
 ```bash
-# Primera página, 10 resultados
+# First page, 10 results
 GET /api/v1/products
 
-# Segunda página
+# Second page
 GET /api/v1/products?page=2
 
-# 25 resultados por página
+# 25 results per page
 GET /api/v1/products?per_page=25
 
-# Combinado
+# Combined
 GET /api/v1/products?page=3&per_page=20
 ```
 
-### Respuesta con metadatos
+### Response with Metadata
 
 ```json
 {
   "success": true,
-  "message": "Operación exitosa",
+  "message": "Operation successful",
   "data": {
     "data": [...],
     "meta": {
@@ -344,9 +344,9 @@ GET /api/v1/products?page=3&per_page=20
 
 ---
 
-## Ejemplo Completo
+## Complete Example
 
-### Controlador
+### Controller
 
 ```php
 class ProductController extends Controller
@@ -388,7 +388,7 @@ class ProductController extends Controller
 }
 ```
 
-### Servicio
+### Service
 
 ```php
 class ProductService extends Service
@@ -440,7 +440,7 @@ class ProductService extends Service
 }
 ```
 
-### Petición completa
+### Complete Request
 
 ```bash
 curl "http://localhost:8000/api/v1/products?\
@@ -456,4 +456,5 @@ page=1&\
 per_page=20&\
 date_from=2024-01-01"
 ```
+
 

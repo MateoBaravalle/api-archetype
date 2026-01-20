@@ -1,240 +1,240 @@
-# 🔐 Sistema de Autenticación
+# 🔐 Authentication System
 
-Guía completa del sistema de autenticación con Laravel Sanctum.
+Complete guide to the authentication system with Laravel Sanctum.
 
 ---
 
-## Índice
+## Index
 
-- [Descripción General](#descripción-general)
+- [General Description](#general-description)
 - [Endpoints](#endpoints)
-- [Login y Registro](#login-y-registro)
-- [Proteger Rutas](#proteger-rutas)
-- [Gestión de Tokens](#gestión-de-tokens)
-- [Eventos](#eventos)
-- [Personalización](#personalización)
+- [Login and Registration](#login-and-registration)
+- [Protecting Routes](#protecting-routes)
+- [Token Management](#token-management)
+- [Events](#events)
+- [Customization](#customization)
 
 ---
 
-## Descripción General
+## General Description
 
-El arquetipo utiliza **Laravel Sanctum** para autenticación API basada en tokens. El sistema tiene las siguientes características:
+The archetype uses **Laravel Sanctum** for token-based API authentication. The system has the following features:
 
-- **Login/Registro unificado**: Un solo endpoint que registra usuarios nuevos o autentica existentes
-- **Tokens API**: Tokens de larga duración para acceso a la API
-- **Gestión de perfil**: Endpoints para actualizar perfil y contraseña
-- **Eventos**: Sistema de eventos para acciones post-registro
+- **Unified Login/Registration**: A single endpoint that registers new users or authenticates existing ones.
+- **API Tokens**: Long-lived tokens for API access.
+- **Profile Management**: Endpoints to update profile and password.
+- **Events**: Event system for post-registration actions.
 
 ---
 
 ## Endpoints
 
-| Método | Endpoint | Descripción | Auth Requerida |
-|--------|----------|-------------|----------------|
-| `POST` | `/api/v1/auth` | Login o Registro | ❌ |
-| `GET` | `/api/v1/auth` | Obtener usuario actual | ✅ |
-| `DELETE` | `/api/v1/auth` | Logout (revocar tokens) | ✅ |
-| `GET` | `/api/v1/users/profile` | Obtener perfil | ✅ |
-| `PUT` | `/api/v1/users/profile` | Actualizar perfil | ✅ |
-| `PUT` | `/api/v1/users/password` | Cambiar contraseña | ✅ |
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | `/api/v1/auth` | Login or Registration | ❌ |
+| `GET` | `/api/v1/auth` | Get current user | ✅ |
+| `DELETE` | `/api/v1/auth` | Logout (revoke tokens) | ✅ |
+| `GET` | `/api/v1/users/profile` | Get profile | ✅ |
+| `PUT` | `/api/v1/users/profile` | Update profile | ✅ |
+| `PUT` | `/api/v1/users/password` | Change password | ✅ |
 
 ---
 
-## Login y Registro
+## Login and Registration
 
-### Registro de nuevo usuario
+### New User Registration
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "nuevo@usuario.com",
+    "email": "new@user.com",
     "password": "password123"
   }'
 ```
 
-**Respuesta (201 Created):**
+**Response (201 Created):**
 
 ```json
 {
   "success": true,
-  "message": "Usuario registrado exitosamente",
+  "message": "User registered successfully",
   "data": {
     "id": 1,
     "name": null,
-    "email": "nuevo@usuario.com",
+    "email": "new@user.com",
     "token": "1|abc123xyz789..."
   }
 }
 ```
 
-### Login de usuario existente
+### Existing User Login
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "existente@usuario.com",
+    "email": "existing@user.com",
     "password": "password123"
   }'
 ```
 
-**Respuesta exitosa (200 OK):**
+**Successful Response (200 OK):**
 
 ```json
 {
   "success": true,
-  "message": "Usuario autenticado exitosamente",
+  "message": "User authenticated successfully",
   "data": {
     "id": 1,
-    "name": "Juan",
-    "email": "existente@usuario.com",
+    "name": "John",
+    "email": "existing@user.com",
     "token": "2|def456uvw012..."
   }
 }
 ```
 
-**Respuesta con credenciales incorrectas (422):**
+**Response with incorrect credentials (422):**
 
 ```json
 {
   "success": false,
-  "message": "Las credenciales proporcionadas son incorrectas.",
+  "message": "The provided credentials are incorrect.",
   "errors": {
-    "email": ["Las credenciales proporcionadas son incorrectas."]
+    "email": ["The provided credentials are incorrect."]
   }
 }
 ```
 
 ---
 
-## Proteger Rutas
+## Protecting Routes
 
-### Middleware de autenticación
+### Authentication Middleware
 
 ```php
 // routes/api.php
 
 Route::prefix('v1')->group(function () {
-    // Rutas públicas
+    // Public routes
     Route::post('/auth', [AuthController::class, 'store']);
     
-    // Rutas protegidas
+    // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/auth', [AuthController::class, 'show']);
         Route::delete('/auth', [AuthController::class, 'destroy']);
         
-        // Tus recursos protegidos
+        // Your protected resources
         Route::apiResource('products', ProductController::class);
     });
 });
 ```
 
-### Usar el token
+### Using the Token
 
-Incluye el token en el header `Authorization`:
+Include the token in the `Authorization` header:
 
 ```bash
 curl http://localhost:8000/api/v1/products \
   -H "Authorization: Bearer 1|abc123xyz789..."
 ```
 
-### Obtener usuario en el controlador
+### Getting User in Controller
 
 ```php
 public function index(Request $request)
 {
     $user = $request->user();
     
-    // Filtrar por usuario actual
+    // Filter by current user
     $products = $user->products;
 }
 ```
 
 ---
 
-## Gestión de Tokens
+## Token Management
 
-### Obtener usuario actual
+### Get Current User
 
 ```bash
 curl http://localhost:8000/api/v1/auth \
   -H "Authorization: Bearer 1|abc123xyz789..."
 ```
 
-**Respuesta:**
+**Response:**
 
 ```json
 {
   "success": true,
-  "message": "Usuario obtenido exitosamente",
+  "message": "User retrieved successfully",
   "data": {
     "id": 1,
-    "name": "Juan",
-    "email": "juan@ejemplo.com"
+    "name": "John",
+    "email": "john@example.com"
   }
 }
 ```
 
-### Logout (revocar tokens)
+### Logout (Revoke Tokens)
 
 ```bash
 curl -X DELETE http://localhost:8000/api/v1/auth \
   -H "Authorization: Bearer 1|abc123xyz789..."
 ```
 
-**Respuesta:**
+**Response:**
 
 ```json
 {
   "success": true,
-  "message": "Sesión cerrada exitosamente",
+  "message": "Session closed successfully",
   "data": null
 }
 ```
 
 ---
 
-## Perfil de Usuario
+## User Profile
 
-### Obtener perfil
+### Get Profile
 
 ```bash
 curl http://localhost:8000/api/v1/users/profile \
   -H "Authorization: Bearer 1|abc123..."
 ```
 
-### Actualizar perfil
+### Update Profile
 
 ```bash
 curl -X PUT http://localhost:8000/api/v1/users/profile \
   -H "Authorization: Bearer 1|abc123..." \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Juan Pérez",
-    "email": "nuevo@email.com"
+    "name": "John Doe",
+    "email": "new@email.com"
   }'
 ```
 
-### Cambiar contraseña
+### Change Password
 
 ```bash
 curl -X PUT http://localhost:8000/api/v1/users/password \
   -H "Authorization: Bearer 1|abc123..." \
   -H "Content-Type: application/json" \
   -d '{
-    "password": "nueva_contraseña",
-    "password_confirmation": "nueva_contraseña"
+    "password": "new_password",
+    "password_confirmation": "new_password"
   }'
 ```
 
 ---
 
-## Eventos
+## Events
 
 ### UserRegistered
 
-Se dispara automáticamente cuando un nuevo usuario se registra:
+It is automatically dispatched when a new user registers:
 
 ```php
 // app/Events/UserRegistered.php
@@ -246,7 +246,7 @@ class UserRegistered
 }
 ```
 
-### Listeners disponibles
+### Available Listeners
 
 ```php
 // app/Listeners/CreateInitialUserSettings.php
@@ -254,7 +254,7 @@ class CreateInitialUserSettings implements ShouldQueue
 {
     public function handle(UserRegistered $event): void
     {
-        // Crear configuraciones iniciales del usuario
+        // Create initial user settings
         $event->user->settings()->create([
             'notifications' => true,
             'theme' => 'light',
@@ -272,7 +272,7 @@ class SendWelcomeEmail implements ShouldQueue
 }
 ```
 
-### Registrar listeners
+### Register Listeners
 
 ```php
 // app/Providers/EventServiceProvider.php
@@ -286,11 +286,11 @@ protected $listen = [
 
 ---
 
-## Personalización
+## Customization
 
-### Agregar campos al registro
+### Add Fields to Registration
 
-1. **Actualizar AuthRequest:**
+1. **Update AuthRequest:**
 
 ```php
 class AuthRequest extends ApiRequest
@@ -301,13 +301,13 @@ class AuthRequest extends ApiRequest
             'name' => 'nullable|string|max:255',
             'email' => 'required|email|max:255',
             'password' => 'required|string|min:8',
-            'phone' => 'nullable|string|max:20', // Nuevo campo
+            'phone' => 'nullable|string|max:20', // New field
         ];
     }
 }
 ```
 
-2. **Actualizar AuthService:**
+2. **Update AuthService:**
 
 ```php
 public function createUser(array $data): User
@@ -316,68 +316,68 @@ public function createUser(array $data): User
         'name' => $data['name'] ?? null,
         'email' => $data['email'],
         'password' => Hash::make($data['password']),
-        'phone' => $data['phone'] ?? null, // Nuevo campo
+        'phone' => $data['phone'] ?? null, // New field
     ]);
 }
 ```
 
-3. **Actualizar modelo User:**
+3. **Update User Model:**
 
 ```php
 protected $fillable = [
     'name',
     'email',
     'password',
-    'phone', // Nuevo campo
+    'phone', // New field
 ];
 ```
 
-### Personalizar el token
+### Customize Token
 
 ```php
-// En AuthService
+// In AuthService
 public function createApiToken(User $user, string $name): string
 {
-    // Token con abilities específicas
+    // Token with specific abilities
     return $user->createToken($name, ['read', 'write'])->plainTextToken;
 }
 ```
 
-### Validar abilities del token
+### Validate Token Abilities
 
 ```php
-// En el controlador
+// In the controller
 public function destroy(int $id)
 {
     if (!$request->user()->tokenCan('delete')) {
-        return $this->errorResponse('No tienes permiso para eliminar', 403);
+        return $this->errorResponse('You do not have permission to delete', 403);
     }
     
     // ...
 }
 ```
 
-### Expiración de tokens
+### Token Expiration
 
 ```php
 // config/sanctum.php
-'expiration' => 60 * 24 * 7, // 7 días en minutos
+'expiration' => 60 * 24 * 7, // 7 days in minutes
 ```
 
 ---
 
-## Seguridad
+## Security
 
-### Recomendaciones
+### Recommendations
 
-1. **HTTPS**: Siempre usar HTTPS en producción
-2. **Rate Limiting**: Ya incluido en el arquetipo
-3. **Validación**: Las contraseñas se validan con mínimo 8 caracteres
-4. **Hashing**: Las contraseñas se hashean automáticamente
+1. **HTTPS**: Always use HTTPS in production.
+2. **Rate Limiting**: Already included in the archetype.
+3. **Validation**: Passwords are validated with a minimum of 8 characters.
+4. **Hashing**: Passwords are hashed automatically.
 
-### Headers de seguridad
+### Security Headers
 
-Agregar en `app/Http/Middleware/SecurityHeaders.php`:
+Add in `app/Http/Middleware/SecurityHeaders.php`:
 
 ```php
 public function handle($request, Closure $next)
@@ -396,13 +396,13 @@ public function handle($request, Closure $next)
 
 ## Testing
 
-### Test de autenticación
+### Authentication Test
 
 ```php
 public function test_user_can_register(): void
 {
     $response = $this->postJson('/api/v1/auth', [
-        'email' => 'nuevo@test.com',
+        'email' => 'new@test.com',
         'password' => 'password123'
     ]);
 

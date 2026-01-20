@@ -1,97 +1,97 @@
-# 📚 Documentación del API Archetype
+# 📚 API Archetype Documentation
 
-Bienvenido a la documentación completa del Laravel API Archetype.
+Welcome to the complete documentation of the Laravel API Archetype.
 
 ---
 
-## Guías Disponibles
+## Available Guides
 
-| Documento | Descripción |
+| Document | Description |
 |-----------|-------------|
-| [README](../README.md) | Documentación principal y referencia completa |
-| [Quick Start](./QUICK_START.md) | Crear tu primer recurso en 10 minutos |
-| [Filtros](./FILTERS.md) | Sistema de filtrado, búsqueda y ordenamiento |
-| [Autenticación](./AUTHENTICATION.md) | Sistema de auth con Laravel Sanctum |
-| [Testing](./TESTING.md) | Guía completa de testing |
+| [README](../README.md) | Main documentation and complete reference |
+| [Quick Start](./QUICK_START.md) | Create your first resource in 10 minutes |
+| [Filters](./FILTERS.md) | Filtering, search, and sorting system |
+| [Authentication](./AUTHENTICATION.md) | Auth system with Laravel Sanctum |
+| [Testing](./TESTING.md) | Complete testing guide |
 
 ---
 
-## Recorrido Recomendado
+## Recommended Path
 
-### Para nuevos usuarios
+### For new users
 
-1. **[README](../README.md)** - Entender la estructura general
-2. **[Quick Start](./QUICK_START.md)** - Crear tu primer recurso
-3. **[Autenticación](./AUTHENTICATION.md)** - Proteger tu API
+1. **[README](../README.md)** - Understand the general structure
+2. **[Quick Start](./QUICK_START.md)** - Create your first resource
+3. **[Authentication](./AUTHENTICATION.md)** - Protect your API
 
-### Para desarrollo avanzado
+### For advanced development
 
-1. **[Filtros](./FILTERS.md)** - Dominar el sistema de filtrado
-2. **[Testing](./TESTING.md)** - Escribir tests completos
+1. **[Filters](./FILTERS.md)** - Master the filtering system
+2. **[Testing](./TESTING.md)** - Write complete tests
 
 ---
 
-## Estructura del Proyecto
+## Project Structure
 
 ```
 api-archetype/
 ├── app/
 │   ├── Http/
-│   │   ├── Controllers/        # Controladores
-│   │   ├── Requests/           # Validación
-│   │   └── Resources/          # Transformadores
-│   ├── Models/                 # Modelos Eloquent
-│   ├── Services/               # Lógica de negocio
-│   ├── Events/                 # Eventos
-│   ├── Listeners/              # Manejadores de eventos
-│   └── Traits/                 # Traits reutilizables
+│   │   ├── Controllers/        # Controllers
+│   │   ├── Requests/           # Validation
+│   │   └── Resources/          # Transformers
+│   ├── Models/                 # Eloquent Models
+│   ├── Services/               # Business Logic
+│   ├── Events/                 # Events
+│   ├── Listeners/              # Event Listeners
+│   └── Traits/                 # Reusable Traits
 ├── routes/
-│   └── api.php                 # Rutas de la API
+│   └── api.php                 # API Routes
 ├── database/
-│   ├── migrations/             # Migraciones
-│   └── factories/              # Factories para testing
+│   ├── migrations/             # Migrations
+│   └── factories/              # Testing Factories
 ├── tests/
-│   ├── Feature/                # Tests de integración
-│   └── Unit/                   # Tests unitarios
-└── docs/                       # Esta documentación
+│   ├── Feature/                # Integration Tests
+│   └── Unit/                   # Unit Tests
+└── docs/                       # This documentation
 ```
 
 ---
 
-## Componentes Principales
+## Main Components
 
-### Clases Base
+### Base Classes
 
-| Clase | Ubicación | Propósito |
+| Class | Location | Purpose |
 |-------|-----------|-----------|
-| `Controller` | `app/Http/Controllers/Controller.php` | Controlador base con helpers |
-| `Model` | `app/Models/Model.php` | Modelo base con hooks y soft deletes |
-| `Service` | `app/Services/Service.php` | Servicio base CRUD |
-| `ApiRequest` | `app/Http/Requests/ApiRequest.php` | Request con sanitización |
-| `ApiResource` | `app/Http/Resources/ApiResource.php` | Resource base |
-| `ApiCollection` | `app/Http/Resources/ApiCollection.php` | Collection con paginación |
+| `Controller` | `app/Http/Controllers/Controller.php` | Base controller with helpers |
+| `Model` | `app/Models/Model.php` | Base model with hooks and soft deletes |
+| `Service` | `app/Services/Service.php` | Base CRUD Service |
+| `ApiRequest` | `app/Http/Requests/ApiRequest.php` | Request with sanitization |
+| `ApiResource` | `app/Http/Resources/ApiResource.php` | Base Resource |
+| `ApiCollection` | `app/Http/Resources/ApiCollection.php` | Collection with pagination |
 
 ### Traits
 
-| Trait | Propósito |
+| Trait | Purpose |
 |-------|-----------|
-| `ApiResponseFormatter` | Formateo de respuestas JSON y manejo de errores |
+| `ApiResponseFormatter` | JSON response formatting and error handling |
 
 ---
 
-## Convenciones
+## Conventions
 
-### Nombres de archivos
+### File Names
 
-- **Modelos**: `Product.php` (singular, PascalCase)
-- **Controladores**: `ProductController.php`
+- **Models**: `Product.php` (singular, PascalCase)
+- **Controllers**: `ProductController.php`
 - **Services**: `ProductService.php`
 - **Requests**: `ProductRequest.php`
 - **Resources**: `ProductResource.php`, `ProductCollection.php`
-- **Migraciones**: `2024_01_01_000001_create_products_table.php`
+- **Migrations**: `2024_01_01_000001_create_products_table.php`
 - **Tests**: `ProductApiTest.php`, `ProductServiceTest.php`
 
-### Estructura de rutas
+### Route Structure
 
 ```
 /api/v1/products          GET     index
@@ -101,30 +101,30 @@ api-archetype/
 /api/v1/products/{id}     DELETE  destroy
 ```
 
-### Respuestas JSON
+### JSON Responses
 
 ```json
 {
   "success": true|false,
-  "message": "Mensaje descriptivo",
+  "message": "Descriptive message",
   "data": { ... } | null,
-  "errors": { ... }  // Solo en errores
+  "errors": { ... }  // Only on errors
 }
 ```
 
 ---
 
-## Soporte
+## Support
 
-Si tienes preguntas o encuentras problemas:
+If you have questions or find issues:
 
-1. Revisa la documentación correspondiente
-2. Busca en los issues del repositorio
-3. Abre un nuevo issue con detalles del problema
+1. Check the corresponding documentation
+2. Search in the repository issues
+3. Open a new issue with details of the problem
 
 ---
 
 <div align="center">
-  <strong>¡Feliz desarrollo! 🚀</strong>
+  <strong>Happy coding! 🚀</strong>
 </div>
 

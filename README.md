@@ -38,12 +38,12 @@ A robust and scalable archetype for building RESTful APIs in Laravel. It provide
 | Feature                  | Description                                          |
 | ------------------------ | ---------------------------------------------------- |
 | 🔐 **Authentication**    | Unified system (Login/Register) in Service Layer     |
-| 📦 **Generic CRUD**      | Atomic operations with DB transactions               |
+| 🏗️ **Eloquent Focus**     | Direct use of Eloquent without redundant layers      |
 | 📋 **Auditing**          | Auditable Trait (created_by, updated_by, deleted_by) |
 | 🛡️ **Authorization**     | Integrated Policies for access control               |
-| 🔍 **Advanced Filtering**| Type-safe filters using Enums (FilterType)           |
+| 🔍 **Model Filtering**   | Advanced filtering defined directly in Models         |
 | ⚡ **Modern PHP**        | Use of `readonly`, `match` and strict typing 8.2+    |
-| ✅ **Validation**        | Automatic sanitization and header validation         |
+| ✅ **Validation**        | Smart `SearchRequest` with automatic pass-through    |
 | 🛡️ **Error Handling**    | Global exceptions formatted to JSON                  |
 | 🧪 **Testing**           | Feature and Unit tests with >80% coverage            |
 | 🗑️ **Soft Deletes**      | Integrated soft deletes by default                   |
@@ -111,30 +111,29 @@ The API will be available at `http://localhost:8000/api/v1/`
 
 ```
 app/
+├── Builders/
+│   └── BaseBuilder.php         # Custom Eloquent Builder for API utils
 ├── Http/
 │   ├── Controllers/
-│   │   ├── Controller.php          # Base controller
-│   │   ├── AuthController.php      # Authentication (thin controller)
-│   │   ├── UserController.php      # User management
-│   │   └── TaskController.php      # Example CRUD with Policy
+│   │   ├── Controller.php          # Base controller (thin)
+│   │   ├── AuthController.php      # Authentication
+│   │   └── TaskController.php      # Example CRUD
 │   ├── Requests/
 │   │   ├── ApiRequest.php          # Base request with sanitization
-│   │   ├── AuthRequest.php         # Auth validation
-│   │   ├── UserRequest.php         # User validation
-│   │   └── TaskRequest.php         # Example validation
+│   │   ├── SearchRequest.php       # Common search validation
+│   │   └── TaskRequest.php         # Resource validation
 │   └── Resources/
 │       ├── ApiResource.php         # Base resource
-│       ├── ApiCollection.php       # Collection with pagination
-│       ├── TaskResource.php        # Example resource
-│       └── TaskCollection.php      # Example collection
+│       └── TaskResource.php        # Example resource
 ├── Models/
-│   ├── Model.php                   # Base model with hooks
+│   ├── Model.php                   # Base model
 │   ├── User.php                    # User model
-│   └── Task.php                    # Example model
+│   ├── Task.php                    # Example model (Filterable)
+│   └── Traits/
+│       └── Filterable.php          # Powerfull filtering logic
 ├── Services/
-│   ├── Service.php                 # Base CRUD Service
-│   ├── AuthService.php             # Authentication logic
-│   └── TaskService.php             # Example service
+│   ├── AuthService.php             # Complex Domain Logic
+│   └── TaskService.php             # Explicit Service (No Base class)
 ├── Policies/
 │   └── TaskPolicy.php              # Example authorization
 ├── Events/
@@ -184,7 +183,7 @@ php artisan make:resource ProductCollection
 
 ### 2. Model
 
-Extend the base model to get soft deletes and hooks:
+Extend the base model and use the `Filterable` trait to enable advanced querying:
 
 ```php
 <?php
@@ -193,72 +192,58 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Builders\BaseBuilder;
+use App\Models\Traits\Filterable;
+use App\Traits\Auditable;
 
 class Product extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, Filterable;
 
-    protected $table = 'products';
-
-    protected $fillable = [
-        'name',
-        'description',
-        'price',
-        'stock',
-        'category_id',
-    ];
-
-    protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
-        'price' => 'decimal:2',
-        'stock' => 'integer',
-    ];
-
-    // Available hooks (optional)
-    protected function beforeCreate()
+    /**
+     * Use the custom builder for API utilities
+     */
+    public function newEloquentBuilder($query): BaseBuilder
     {
-        // Executed before create
+        return new BaseBuilder($query);
     }
 
-    protected function afterCreate()
+    protected $fillable = ['name', 'price', 'category_id'];
+
+    /**
+     * Define allowed filters and their types
+     */
+    public function getFilters(): array
     {
-        // Executed after create
+        return [
+            'name' => \App\Support\Query\FilterType::PARTIAL,
+            'category_id' => \App\Support\Query\FilterType::EXACT,
+        ];
     }
 
-    protected function beforeUpdate()
+    /**
+     * Define supported ranges (dates or numbers)
+     */
+    public function getRanges(): array
     {
-        // Executed before update
+        return [
+            'price' => 'price', // ?price_min=10&price_max=100
+        ];
     }
 
-    protected function afterUpdate()
+    /**
+     * Default sorting
+     */
+    public function getDefaultSortField(): string
     {
-        // Executed after update
-    }
-
-    protected function beforeDelete()
-    {
-        // Executed before delete
-    }
-
-    protected function afterDelete()
-    {
-        // Executed after delete
-    }
-
-    // Relationships
-    public function category()
-    {
-        return $this->belongsTo(Category::class);
+        return 'name';
     }
 }
 ```
 
 ### 3. Service
 
-Extend the base service to get CRUD and filtering:
+Services are explicit and direct. No base class magic. They inject the Model and focus on domain logic:
 
 ```php
 <?php
@@ -268,220 +253,57 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Product;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 
-class ProductService extends Service
+class ProductService
 {
-    public function __construct()
-    {
-        parent::__construct(new Product());
-    }
+    public function __construct(
+        protected Product $model
+    ) {}
 
     /**
-     * Get products with filters applied
+     * Get products with filters applied using BaseBuilder utils
      */
     public function getProducts(array $params): LengthAwarePaginator
     {
-        $query = $this->model->query();
-        $query = $this->getFilteredAndSorted($query, $params);
-
-        return $this->getAll($params['page'], $params['per_page'], $query);
+        return $this->model
+            ->filterAndSort($params)      // Uses Filterable trait
+            ->paginateFromParams($params); // Uses BaseBuilder safety
     }
 
-    /**
-     * Get a product by ID
-     */
-    public function getProduct(int $id): Product
-    {
-        return $this->getById($id);
-    }
-
-    /**
-     * Create a new product
-     */
     public function createProduct(array $data): Product
     {
-        return $this->create($data);
+        return $this->model->create($data);
     }
-
-    /**
-     * Update an existing product
-     */
-    public function updateProduct(int $id, array $data): Product
-    {
-        return $this->update($id, $data);
-    }
-
-    /**
-     * Delete a product
-     */
-    public function deleteProduct(int $id): bool
-    {
-        return $this->delete($id);
-    }
-
-    // ==========================================
-    // Custom filters (optional)
-    // ==========================================
-
-    /**
-     * Filter by category
-     */
-    protected function filterByCategory(Builder $query, int $value): Builder
-    {
-        return $query->where('category_id', $value);
-    }
-
-    /**
-     * Filter by price range
-     */
-    protected function filterByPriceRange(Builder $query, array $value): Builder
-    {
-        if (isset($value['min'])) {
-            $query->where('price', '>=', $value['min']);
-        }
-        if (isset($value['max'])) {
-            $query->where('price', '<=', $value['max']);
-        }
-        return $query;
-    }
-
-    /**
-     * Filter in-stock products
-     */
-    protected function filterByInStock(Builder $query, bool $value): Builder
-    {
-        return $value
-            ? $query->where('stock', '>', 0)
-            : $query->where('stock', '=', 0);
-    }
-
-    // ==========================================
-    // Global search configuration
-    // ==========================================
-
-    /**
-     * Columns for global search
-     */
-    protected function getGlobalSearchColumns(): array
-    {
-        return ['name', 'description'];
-    }
-
-    /**
-     * Relationships for global search (optional)
-     */
-    protected function getGlobalSearchRelations(): array
-    {
-        return [
-            'category' => ['name'],
-        ];
-    }
+    
+    // ... other CRUD methods
 }
 ```
 
 ### 4. Controller
 
-Extend the base controller to get response helpers and parameters:
+Controllers are skinny. Use `SearchRequest` for index validation:
 
 ```php
 <?php
 
-declare(strict_types=1);
-
 namespace App\Http\Controllers;
 
-use App\Http\Requests\ProductRequest;
+use App\Http\Requests\SearchRequest;
 use App\Services\ProductService;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
-    protected ProductService $productService;
-
     public function __construct(
-        protected readonly ProductService $productService
+        protected ProductService $productService
     ) {}
 
-    /**
-     * List products
-     */
-    public function index(Request $request): JsonResponse
+    public function index(SearchRequest $request)
     {
-        $params = $this->getQueryParams($request);
-        $products = $this->productService->getProducts($params);
+        // Just pass validated data. The Model knows how to filter.
+        $products = $this->productService->getProducts($request->validated());
 
         return $this->successResponse($products);
-    }
-
-    /**
-     * Create product
-     */
-    public function store(ProductRequest $request): JsonResponse
-    {
-        $product = $this->productService->createProduct($request->validated());
-
-        return $this->successResponse($product, 'Product created successfully', 201);
-    }
-
-    /**
-     * Show product
-     */
-    public function show(int $id): JsonResponse
-    {
-        $product = $this->productService->getProduct($id);
-
-        return $this->successResponse($product);
-    }
-
-    /**
-     * Update product
-     */
-    public function update(ProductRequest $request, int $id): JsonResponse
-    {
-        $product = $this->productService->updateProduct($id, $request->validated());
-
-        return $this->successResponse($product, 'Product updated successfully');
-    }
-
-    /**
-     * Delete product
-     */
-    public function destroy(int $id): JsonResponse
-    {
-        $this->productService->deleteProduct($id);
-
-        return $this->successResponse(null, 'Product deleted successfully');
-    }
-
-    // ==========================================
-    // Filters and sorting configuration
-    // ==========================================
-
-    /**
-     * Allowed filters in URL
-     */
-    protected function getAllowedFilters(): array
-    {
-        return ['global', 'category', 'price_range', 'in_stock'];
-    }
-
-    /**
-     * Default sort field
-     */
-    protected function getDefaultSortField(): string
-    {
-        return 'created_at';
-    }
-
-    /**
-     * Default sort order
-     */
-    protected function getDefaultSortOrder(): string
-    {
-        return 'desc';
     }
 }
 ```
@@ -717,22 +539,36 @@ GET /api/v1/products?page=2&per_page=20
 GET /api/v1/products?global=laptop&category=1&sort_by=price&page=1&per_page=10
 ```
 
-### Date Range Filter
+### Global Search
+
+Search in multiple columns and relationships:
 
 ```php
-// In the controller, add to getQueryParams if you need date range
-protected function getQueryParams(Request $request): array
-{
-    $params = parent::getQueryParams($request);
+// In Model
+protected function getGlobalSearchColumns(): array {
+    return ['name', 'sku'];
+}
 
-    $params['date_range'] = [
-        'start' => $request->query('date_from'),
-        'end' => $request->query('date_to'),
-    ];
-
-    return $params;
+protected function getGlobalSearchRelations(): array {
+    return ['brand' => ['name']];
 }
 ```
+
+Usage: `?global=apple` will search name and sku of product, AND the name of its brand.
+
+### Date Range Filter
+
+Automatically supported by the `SearchRequest` and `Filterable` trait.
+
+1. Define it in the Model:
+```php
+public function getRanges(): array {
+    return ['date' => 'created_at'];
+}
+```
+2. Call it from the API:
+   - `?date_start=2023-01-01&date_end=2023-12-31`
+   - Also supports `min_price` / `max_price` syntax for numeric ranges.
 
 ---
 

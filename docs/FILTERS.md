@@ -77,17 +77,23 @@ GET /api/v1/products?global=laptop
 
 ### Búsqueda en Relaciones
 
+Puedes buscar en relaciones usando notación de puntos (dot-notation) para relaciones anidadas:
+
 ```php
 protected function getGlobalSearchRelations(): array
 {
     return [
-        'category' => ['name', 'slug'],
+        'category' => ['name', 'slug'], // Relación directa
         'brand' => ['name'],
+        'user.profile' => ['address', 'phone'], // Relación anidada: usuario -> perfil -> campos
     ];
 }
 ```
 
-Esto buscará el término en las columnas de las relaciones también.
+### Características de Seguridad y Búsqueda Inteligente
+
+1. **Búsqueda Tokenizada**: El término de búsqueda se divide en "tokens". Si buscas "Laptop Pro", el sistema buscará registros que contengan "Laptop" Y "Pro" (en cualquier orden y columna), ofreciendo resultados más relevantes.
+2. **Validación de Schema**: El sistema verifica automáticamente que los filtros básicos correspondan a columnas reales en la tabla, evitando errores SQL por parámetros inválidos.
 
 ---
 
@@ -95,16 +101,22 @@ Esto buscará el término en las columnas de las relaciones también.
 
 ### Crear un filtro personalizado
 
-En tu servicio, crea un método `filterBy{Campo}`:
+En tu servicio (o modelo, usando scopes), crea un método `filterBy{Campo}`. Este método recibe el valor del filtro y **todos los parámetros** como segundo argumento, permitiendo lógica condicional compleja.
 
 ```php
-class ProductService extends Service
+class Product extends Model
 {
     /**
      * Filtro exacto por status
+     * Recibe $value (valor del filtro) y $params (todos los filtros aplicados)
      */
-    protected function filterByStatus(Builder $query, string $value): Builder
+    public function scopeFilterByStatus(Builder $query, string $value, array $params = []): Builder
     {
+        // Ejemplo: Si se solicita 'archived' pero no se incluye 'include_archived', ignorar
+        if ($value === 'archived' && !($params['include_archived'] ?? false)) {
+             return $query;
+        }
+
         return $query->where('status', $value);
     }
 

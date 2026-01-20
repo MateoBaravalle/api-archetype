@@ -6,6 +6,7 @@ namespace App\Models\Traits;
 
 use App\Support\Query\FilterType;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 trait Filterable
@@ -34,6 +35,7 @@ trait Filterable
     protected function applyDefinedFilters(Builder $query, array $params): void
     {
         $definitions = method_exists($this, 'getFilters') ? $this->getFilters() : [];
+        $columns = Schema::getColumnListing($this->getTable());
 
         foreach ($definitions as $paramName => $type) {
             if (! isset($params[$paramName]) || $params[$paramName] === '') {
@@ -49,7 +51,23 @@ trait Filterable
             // Custom Scope
             $scopeName = 'filterBy' . Str::studly($paramName);
             if (method_exists($this, 'scope' . ucfirst($scopeName))) {
-                $query->$scopeName($value);
+                $query->$scopeName($value, $params);
+                continue;
+            }
+
+            // Global/Simple search don't map to a specific column on the table
+            if ($type === FilterType::GLOBAL_SEARCH) {
+                $this->applyGlobalSearch($query, (string) $value);
+                continue;
+            }
+
+            if ($type === FilterType::SIMPLE_SEARCH) {
+                $this->applySimpleSearch($query, (string) $value);
+                continue;
+            }
+
+            // Verify column exists
+            if (! in_array($paramName, $columns)) {
                 continue;
             }
 
@@ -58,8 +76,6 @@ trait Filterable
                 FilterType::EXACT => $query->where($paramName, $value),
                 FilterType::PARTIAL => $query->where($paramName, 'like', '%' . $value . '%'),
                 FilterType::IN => $query->whereIn($paramName, (array) $value),
-                FilterType::GLOBAL_SEARCH => $this->applyGlobalSearch($query, $value),
-                FilterType::SIMPLE_SEARCH => $this->applySimpleSearch($query, $value),
                 default => $query->where($paramName, $value),
             };
         }
@@ -129,16 +145,24 @@ trait Filterable
      */
     protected function applyGlobalSearch(Builder $query, string $value): Builder
     {
-        $value = strtolower($value);
+        $tokens = $this->tokenizeSearch($value);
 
-        $query->where(function ($q) use ($value) {
-            // Apply search on text columns
-            foreach ($this->getGlobalSearchColumns() as $column) {
-                $q->orWhere($column, 'like', "%{$value}%");
+        if (empty($tokens)) {
+            return $query;
+        }
+
+        $query->where(function ($q) use ($tokens) {
+            foreach ($tokens as $token) {
+                $q->where(function ($tokenClause) use ($token) {
+                    // Apply search on text columns
+                    foreach ($this->getGlobalSearchColumns() as $column) {
+                        $tokenClause->orWhere($column, 'like', "%{$token}%");
+                    }
+
+                    // Apply search on relations
+                    $this->applyGlobalSearchToRelations($tokenClause, $token);
+                });
             }
-
-            // Apply search on relations
-            $this->applyGlobalSearchToRelations($q, $value);
         });
 
         return $query;
@@ -155,15 +179,39 @@ trait Filterable
     /**
      * Applies global search to defined relations
      */
-    protected function applyGlobalSearchToRelations(Builder $query, string $value): void
+    protected function applyGlobalSearchToRelations(Builder $query, string $token): void
     {
         foreach ($this->getGlobalSearchRelations() as $relation => $columns) {
-            $query->orWhereHas($relation, function ($q) use ($columns, $value) {
-                foreach ($columns as $column) {
-                    $q->orWhere($column, 'like', "%{$value}%");
-                }
+            // Support dot notation for relations explicitly
+            $query->orWhereHas($relation, function ($q) use ($columns, $token) {
+                $q->where(function ($subQ) use ($columns, $token) {
+                    foreach ($columns as $column) {
+                        $subQ->orWhere($column, 'like', "%{$token}%");
+                    }
+                });
             });
         }
+    }
+
+    /**
+     * Normalizes and tokenizes a search value
+     *
+     * @return array<string>
+     */
+    protected function tokenizeSearch(string $value): array
+    {
+        // Normalize spaces and case
+        $normalized = mb_strtolower(preg_replace('/\s+/', ' ', $value));
+
+        // Extract tokens (letters and numbers)
+        $tokens = preg_split('/[^\p{L}\p{N}]+/u', $normalized, -1, PREG_SPLIT_NO_EMPTY);
+
+        if (! is_array($tokens) || empty($tokens)) {
+            return [];
+        }
+
+        // Escape special characters for LIKE
+        return array_map(fn ($t) => str_replace(['%', '_'], ['\\\\%', '\\\\_'], $t), $tokens);
     }
 
     /**
